@@ -1,0 +1,34 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: Install packages
+    apt: pkg={{ item.name }} state=present
+    with_items:
+      - { name: 'git' }
+      - { name: 'g++' }
+      - { name: 'scons' }
+      - { name: 'swig' }
+      - { name: 'm4' }
+      - { name: 'libpython-dev' }
+      - { name: 'imagemagick' }
+      - { name: 'transfig' }
+      - { name: 'ghostscript' }
+      - { name: 'netpbm' }
+      - { name: 'libzip-dev' }
+      - { name: 'libproj-dev' }
+      - { name: 'libboost-dev' }
+      - { name: 'libcairomm-1.0-dev' }
+      - { name: 'libgtkmm-2.4-dev' }
+      - { name: 'libpng-dev' }
+      - { name: 'libjpeg-dev' }
+      - { name: 'libtiff-dev' }
+      - { name: 'libgif-dev' }
+      - { name: 'libusb1.0-0-dev' }
+      - { name: 'libyaml-dev' }
+      - { name: 'libxml2-dev' }
+      - { name: 'libcurl4-gnutls-dev' }
+      - { name: 'libjansson-dev' }
+      - { name: 'libshp-dev' }
+# zlib-devel libpixman-devel
+

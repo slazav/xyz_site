@@ -1,0 +1,12 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: Install packages
+    apt: pkg={{ item.name }} state=present
+    with_items:
+      - { name: 'apache2' }
+      - { name: 'mongodb' }
+      - { name: 'libcgi-pm-perl' }
+      - { name: 'libmongodb-perl' }
+      - { name: 'git' }

@@ -1,0 +1,10 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: Download latest mapsoft
+    git: repo=https://github.com/ushakov/mapsoft dest=/root/mapsoft version=HEAD
+
+  - name: Build mapsoft
+    command: scons chdir='/root/mapsoft'
+

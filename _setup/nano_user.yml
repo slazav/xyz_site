@@ -1,0 +1,25 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: Create nano user
+    user:
+      name: nano
+      groups: users
+      append: yes
+
+  - name: Create .ssh folder
+    file:
+      path: /home/nano/.ssh/
+      state: directory
+      mode: 0700
+      owner: nano
+      group: users
+
+  - name: Add authorized_keys
+    copy:
+      src: /home/sla/.ssh/id_rsa.pub
+      dest: /home/nano/.ssh/authorized_keys
+      mode: 0600
+      owner: nano
+      group: users

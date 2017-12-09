@@ -1,0 +1,9 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: start Services
+    service: name={{ item.name }} state=started enabled=yes
+    with_items:
+      - { name: 'apache2' }
+      - { name: 'mongodb' }

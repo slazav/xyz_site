@@ -1,0 +1,42 @@
+#!/bin/bash -eu
+
+# подготовка сайта к публикации
+# - исходники (dest) - в директориях html cgi
+# - сайты (site) - main, test
+# - все файлы, кроме *.m4 копируются без изменений из $dest в $site/$dest
+# - все файлы $dest/*.m4 кроме $dest/defs.m4 пропускаются через m4 вместе с
+#   $dest/defs.m4 и с установленными переменными FILE_NAME и SITE_NAME
+
+remote_dest="xyzr:/var/www"
+
+function upd_m4() {
+  src=$1
+  site=$2
+  defs1="defs.m4"
+  defs2="$src/defs.m4"
+
+  for i in $src/*.m4; do
+    [ -s "$i" ] || continue
+    [ "$i" != "$defs2" ] || continue
+
+    [ -s "$defs1" ] || defs1=""
+    [ -s "$defs2" ] || defs2=""
+
+    o=${i%.m4}
+
+    if [ "$i" -nt "$o" -o "$defs1" -nt "$o" -o "$defs2" -nt "$o" ]; then
+      echo "-- $o"
+      m4 -D FILE_NAME=${o##*/} -D SITE_NAME=$site $defs1 $defs2 "$i" > $o
+    fi
+  done
+}
+
+site=test
+
+for dir in html cgi; do
+  echo "    Updating m4:"
+  upd_m4 $dir $site
+  echo "transferring to <$site>:"
+  rsync -avzL --delete  $dir/ $remote_dest/$site/$dir/
+done
+

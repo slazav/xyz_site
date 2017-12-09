@@ -1,0 +1,14 @@
+## swap space needed for mapsoft build
+---
+- hosts: xyz
+
+  tasks:
+  - name: Make swap
+    shell: |
+      dd if=/dev/zero of=/swap bs=1M count=512
+      chmod 600 /swap
+      mkswap /swap
+      swapon /swap
+    args:
+      creates: /swap
+

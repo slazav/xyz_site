@@ -1,0 +1,22 @@
+Устройство сайта:
+
+сайты лежат:
+/var/www/main:  http://slazav.xyz
+/var/www/test:  http://test.slazav.xyz
+/var/www/tiles: http://tiles.slazav.xyz
+
+внутри у каждого сайта есть поддиректории
+cgi
+data
+html
+logs
+
+
+обновление:
+- обновление m4 с SITE=test в html и cgi
+- html и cgi -> в /var/www/test{html,cgi}
+
+публикация:
+- /var/www/test/{html,cgi} -> в /var/www/main{html,cgi}, кроме m4
+- обновление m4 с SITE_NAME=main
+

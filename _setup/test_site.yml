@@ -1,0 +1,23 @@
+# configure Test site (no data)
+---
+- hosts: xyz
+  vars_files:
+    - test_vars.yml
+
+  tasks:
+  - name: copy apache configuration
+    template: src=cfg/apache.conf.j2
+          dest=/etc/apache2/sites-enabled/{{ site }}.conf
+
+  - name: create folders if needed
+    file: name={{ item.name }} state=directory mode={{ item.mode }}
+    with_items:
+      - { name: '{{ wwwdir }}/html/', mode: '0755'}
+      - { name: '{{ wwwdir }}/data/', mode: '0777'}
+      - { name: '{{ wwwdir }}/logs/', mode: '0777'}
+      - { name: '{{ wwwdir }}/cgi/', mode: '0755'}
+
+  - name: restart Services
+    service: name={{ item.name }} state=restarted
+    with_items:
+      - { name: 'apache2' }

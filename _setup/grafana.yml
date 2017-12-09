@@ -1,0 +1,25 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: Get package
+    get_url:
+      url: https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana_4.6.2_amd64.deb
+      dest: /tmp/grafana.deb
+
+  - name: install
+    apt: deb=/tmp/grafana.deb state=present
+
+  - name: install plugin
+    command: grafana-cli plugins install grafana-simple-json-datasource
+
+  - name: start service
+    service: name=grafana-server state=started enabled=yes
+
+# todo: modify config (open anon access etc)
+
+  - name: open port 3000
+    ufw:
+      rule: allow
+      port: 3000
+      proto: tcp

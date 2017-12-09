@@ -1,0 +1,17 @@
+# upload test site
+---
+- hosts: xyz
+  vars_files:
+    - tiles_vars.yml
+
+  tasks:
+
+  - name: install data
+    synchronize: src={{ item.sdir }} dest={{ wwwdir }}/{{ item.ddir }}
+                 archive=yes delete=no perms=no
+    with_items:
+      - { sdir: '../tiles.htm/', ddir: 'html/' }
+
+  - name: fix permissions
+    command: sh -c 'find {{ wwwdir }}/html ! -perm -444 -print | xargs -r chmod 644'
+

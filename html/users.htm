@@ -1,0 +1,42 @@
+<html>
+<head>
+  <LINK href="js/edb.css" rel="stylesheet" type="text/css">
+  <script type="text/JavaScript" src="site.js"></script>
+  <script type="text/JavaScript" src="eventdb.js"></script>
+  <style>
+    th {
+      font-weight: normal;
+      background-color: #D0F0FF;
+    }
+  </style>
+</head>
+
+<body onload="on_load()">
+
+  <!-- Top menu, login/logout buttons -->
+  <table width="100%" border=0 class="main_menu"><tr>
+  <td width="0%"><a href="main.htm">Главная</a></td>
+  <td class=loginbtn align=right></td>
+  </tr></table>
+  <hr>
+
+  <h4>Список пользователей:</h4>
+
+  <span class="userlist"></span>
+
+  <!-- User level -->
+  <span data-bind="if: alias">
+    <p>Ваш уровень доступа: <span class="user_rlevel"></span></b>.
+       Вы можете поменять уровень доступа другого пользователя, только если старый и новый уровень меньше вашего.
+    <h4>Уровни доступа:</h4>
+    <ul>
+    <li>ограниченный -- те же права, что и у анонимного пользователя,
+    <li>обычный -- любой новый пользователь,
+    <li>модератор -- может править чужие записи и банить обычных пользователей,
+    <li>администратор -- может назначать и свергать модераторов,
+    <li>самый главный -- пользователь с самыми высокими правами.
+    </ul>
+  </span>
+
+</body>
+</html>

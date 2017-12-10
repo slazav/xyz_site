@@ -1,6 +1,7 @@
 package common;
 use site;
 use CGI ":standard";
+use MongoDB;
 
 BEGIN {
   require Exporter;
@@ -8,7 +9,7 @@ BEGIN {
   our @ISA = qw(Exporter);
   our @EXPORT = qw($LEVEL_ANON $LEVEL_NORM $LEVEL_MODER
                    $LEVEL_ADMIN $LEVEL_SUPER
-                   write_log get_session);
+                   write_log get_session next_id);
 }
 
 # user levels
@@ -41,6 +42,24 @@ sub get_session {
   }
   die "Session is missing" unless $sess;
   return $sess;
+}
+
+# counters for autoincremented id
+# see https://docs.mongodb.com/v3.0/tutorial/create-an-auto-incrementing-field/
+sub next_id{
+   my $db = shift;   # database handler
+   my $coll = shift; # collection name
+
+   my $cnt = $db->get_collection( 'counters' );
+
+   my $c = $cnt->find_one_and_update(
+          { '_id' => $coll }, {'$inc' => { 'seq' => 1 }});
+   return $c->{seq}+1 if $c;
+
+   # counter does not exist yet
+   my $res = $cnt->insert_one({'_id' => $coll, 'seq' => 1});
+   die "can't create a counter for $coll" unless $res->acknowledged;
+   return 1;
 }
 
 1;

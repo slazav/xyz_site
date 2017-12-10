@@ -1,2 +1,213 @@
-body { font-family: arial,sans-serif; }
-.main_menu { font-weight: bold; }
+/**********************************************/
+body {
+  font-family: arial,sans-serif;
+  font-weight:bold;
+  color:#006496;
+  overflow:hidden;
+}
+
+a {
+  text-decoration:none;
+  font-family: arial,sans-serif;
+  font-weight:bold;
+  font-size:16px;
+  cursor:pointer;
+  color:#006496;
+}
+
+td {
+  font-family: arial,sans-serif;
+  font-weight:bold;
+  font-size:16px;
+  color:#006496;
+}
+
+/**********************************************/
+/* some small classes */
+
+.frame {
+  border:2px solid #006496;
+  border-radius:5px;
+}
+
+.hframe {
+  border-bottom: 2px solid #006496;
+  border-left: 2px solid #006496;
+  border-radius:5px;
+}
+
+.dark {
+  background-color:#006496;
+  color:#ffffff;
+}
+
+.light {
+  background-color:#ffffff;
+  color:#006496;
+}
+
+/* затемнение - используется для подкладки под всплывающие диалоги*/
+.shade {
+  opacity:0.8;
+  background-color:#313131;
+}
+
+.edit_img {
+  text-align:left;
+  background: #ffffff url("img/edit.png") no-repeat right top;
+}
+
+.pointer {
+  cursor:pointer;
+}
+
+a.button {
+  text-decoration:none;
+  text-align:center;
+/*  display:block;*/
+  cursor:pointer;
+  padding:3px 5px;
+  margin: 0px 5px;
+}
+
+/* some small classes */
+
+.loginbtn {
+  padding:0px 0px 15px 0px;
+}
+
+.login_link {
+  padding:3px 5px;
+}
+
+/* широкая линейка */
+hr.wide {
+  margin:10px -40px;
+  border:0;
+  border-top:1px solid #006496;
+}
+hr.normal {
+  margin:0px 0px;
+  border:0;
+  border-top:1px solid #006496;
+}
+
+.main_block {
+  border:2px solid #006496;
+  border-radius:10px;
+  vertical-align: top;
+}
+
+/**********************************************/
+/* Всплывающий диалог */
+
+/* div, заполняющий весь экран. Один нужен для popup-окна,
+  второй, внутри него - для затенения остального */
+div.fullscreen {
+  position:fixed;
+  width:100%;
+  height:100%;
+  top:0;
+  left:0;
+  overflow:auto
+}
+
+/* Forma для popup-окна с фиксированной шириной */
+form.popup {
+  position: absolute;
+  width: 360px;
+  margin-left:-180px;
+  left: 50%;
+  top: 10%;
+  padding:0px 40px;
+  opacity: 1;
+  background-color:#ffffff;
+}
+
+/* popup close button*/
+img.close {
+  position:absolute;
+  right:-10px;
+  top:-10px;
+  cursor:pointer
+}
+
+/**********************************************/
+/* Элементы формы */
+
+
+textarea {
+  height:200px;
+  resize:none;
+  width:100%;
+  border:1px solid #006496;
+  border-radius:5px;
+  padding:5px;
+  margin: 10px 0px 10px -5px;
+  font-weight:bold;
+  font-size:16px;
+}
+
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;       /* remove default arrow */
+  background: #ffffff url("img/sel.png") no-repeat right top;
+  width:100%;
+  border:1px solid #006496;
+  border-radius:5px;
+  padding:5px;
+  margin: 10px 0px 10px -5px;
+  font-weight:bold;
+  font-size:16px;
+}
+
+input[type=text] {
+  width:100%;
+  border:1px solid #006496;
+  border-radius:5px;
+  padding:5px;
+  margin: 10px 0px 10px -5px;
+  font-weight:bold;
+  font-size:16px;
+}
+
+input[type=checkbox] {
+  border: 1px solid #006496;
+  border-radius:2px;
+  padding: 15px;
+}
+
+label {
+  width:100%;
+  color: #006496;
+  padding:5px 10px;
+  margin: 10px 10px 10px -5px;
+  font-weight:bold;
+  font-size:16px;
+}
+
+h2 {
+  color: #006496;
+  padding:20px 35px;
+  margin:-15px -10px;
+  text-align:left;
+  font-weight:bold;
+}
+
+.submit_button {
+  text-decoration:none;
+  text-align:center;
+  width:100%;
+  display:block;
+  background-color:#006496;
+  color:#fff;
+  border:1px solid #006496;
+  border-radius:5px;
+  cursor:pointer;
+  padding:5px;
+  margin: 25px 0px 25px -5px;
+  border-radius:5px;
+  font-size:20px;
+}
+

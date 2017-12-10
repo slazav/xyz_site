@@ -52,14 +52,15 @@ function mk_face(id, name, site){
 function mk_loginbtn(id, name, site){
   if (id == undefined) {
     return 'войти: '
-     + '<a href="' + loginza_login_url  + '"><img alt="Loginza"  src="img/loginza.png"></a> '
-     + '<a href="' + facebook_login_url + '"><img alt="Facebook" src="img/fb.png"></a> '
-     + '<a href="' + google_login_url   + '"><img alt="Google"   src="img/go.png"></a> ';
+     + '<a class="frame login_link" href="' + loginza_login_url  + '"><img alt="Loginza"  src="img/loginza.png"></a> '
+     + '<a class="frame login_link" href="' + facebook_login_url + '"><img alt="Facebook" src="img/fb.png"></a> '
+     + '<a class="frame login_link" href="' + google_login_url   + '"><img alt="Google"   src="img/go.png"></a> ';
   }
   else {
-    return mk_face(id, name, site) +
-      ' <input type=submit value="выйти"' +
-      ' onclick="do_request(\'logout\', \'\', update_info)">';
+    return '<div>' + mk_face(id, name, site)
+      + ' <a class="button frame light"'
+      + ' href="javascript:do_request(\'logout\', \'\', update_info)">'
+      + 'выйти</a></div>';
   }
 }
 

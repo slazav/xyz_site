@@ -8,6 +8,8 @@
 # Output -- all users from "users" database
 #   - fields "sess", "info" are removed
 #   - field "me"=1 added for the caller
+#   - if the caller can set user level then field "level_hints"
+#     is added with with possible level values
 
 ################################################
 
@@ -37,16 +39,12 @@ try {
   # check permissions
   my $u = $users->find_one({'sess'=>$sess});
   die "can't find user level" unless defined $u->{level};
-  die "user level is too low" if $u->{level} < $LEVEL_MODER;
+  die "user level is too low" if $u->{level} <= $LEVEL_NORM;
 
   # collect information into array
-  my $query_result = $users->find()->result;
+  my $query_result = $users->find({}, {'projection' => {'sess'=>0, 'info'=>0}})->result;
   my $res=[];
   while ( my $next = $query_result->next ) {
-
-    # delete secret fields
-    delete $next->{sess};
-    delete $next->{info};
 
     # add "me" field
     $next->{me}=1 if $next->{_id} eq $u->{_id};
@@ -56,7 +54,7 @@ try {
       $next->{level_hints} = [];
       for (my $j=$LEVEL_ANON; $j < $u->{level}; $j++){
         last if $j > $LEVEL_ADMIN;
-        push $next->{level_hints}, $j;
+        push @{$next->{level_hints}}, $j;
       }
     }
     push @{$res}, $next;

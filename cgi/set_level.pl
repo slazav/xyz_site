@@ -51,7 +51,7 @@ try {
   die "can't find user1" unless defined $u1;
   die "user1 level is too low" if $u1->{level} <= $LEVEL_NORM;
 
-  my $u2 = $users->find_one({'_id'=>$id});
+  my $u2 = $users->find_one({'_id'=>$id}, {'sess'=>0});
   die "can't find user2" unless defined $u2;
 
   die "can't change level" if $u1->{level} <= $u2->{level} ||

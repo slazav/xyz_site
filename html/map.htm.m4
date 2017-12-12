@@ -14,6 +14,8 @@
 
   <script src="rod/rodn201411.js" charset="UTF-8"></script>
   <script src="map.js"></script>
+  <script src="main.js"></script>
+  <script src="site.js"></script>
 
   <style>
     #mapid { height: 100%; }
@@ -21,7 +23,9 @@
 </head>
 <body onload="SetUp('mapid')">
 
-<table cellpadding=5 cellspacing=0 border=1 width=100% height=100%><tr>
+MAIN_PANEL_BEGIN
+
+<table cellpadding=5 cellspacing=0 border=0 width=100% height=100%><tr>
 <td valign=top width=20%>
 <b>Основные слои:</b>
 <br><input type=checkbox id=toggle_OSM checked onclick="layer_toggle('OSM')"><label>OSM</label>
@@ -33,6 +37,8 @@
 <td width=80%>
 <div id="mapid"></div>
 </td>
+
+MAIN_PANEL_END
 
 </body>
 </html>

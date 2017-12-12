@@ -42,9 +42,9 @@ function mk_face(id, name, site){
       if (site == 'google') return 'img/go.png';
       if (site == 'gplus')  return 'img/gp.png';
       return "";};
-  return '<a style="text-decoration: none;" href="' + id + '">'
-       + '<img style="margin-bottom:-2px;" src="' + mk_icon(site) + '">'
-       + '<b>' + name + '</b></a>'
+  return '<span class="user_face"><a href="' + id + '">'
+       + '<img class="login_img" src="' + mk_icon(site) + '">'
+       + '<b>' + name + '</b></a></span>'
 }
 
 /////////////////////////////////////////////////////////////////
@@ -52,15 +52,13 @@ function mk_face(id, name, site){
 function mk_loginbtn(id, name, site){
   if (id == undefined) {
     return 'войти: '
-     + '<a class="frame login_link" href="' + loginza_login_url  + '"><img alt="Loginza"  src="img/loginza.png"></a> '
-     + '<a class="frame login_link" href="' + facebook_login_url + '"><img alt="Facebook" src="img/fb.png"></a> '
-     + '<a class="frame login_link" href="' + google_login_url   + '"><img alt="Google"   src="img/go.png"></a> ';
+     + '<a class="login_btn" href="' + loginza_login_url  + '"><img class="login_img" alt="Loginza"  src="img/loginza.png"></a> '
+     + '<a class="login_btn" href="' + facebook_login_url + '"><img class="login_img" alt="Facebook" src="img/fb.png"></a> '
+     + '<a class="login_btn" href="' + google_login_url   + '"><img class="login_img" alt="Google"   src="img/go.png"></a> ';
   }
   else {
-    return '<div>' + mk_face(id, name, site)
-      + ' <a class="button frame light"'
-      + ' href="javascript:do_request(\'logout\', \'\', update_info)">'
-      + 'выйти</a></div>';
+    return mk_face(id, name, site)
+      + ' <a class="login_btn" href="javascript:do_request(\'logout\', \'\', update_info)">выйти</a>';
   }
 }
 
@@ -77,7 +75,7 @@ var mk_rlevel = function(l) {
 /////////////////////////////////////////////////////////////////
 // update user information
 function update_info(data){
-  var ll = document.getElementsByClassName("loginbtn");
+  var ll = document.getElementsByClassName("login_panel");
   for (i=0; i<ll.length; i++){
     ll[i].innerHTML = mk_loginbtn(data._id, data.name, data.site); }
 

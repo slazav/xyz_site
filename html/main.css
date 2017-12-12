@@ -1,38 +1,29 @@
 /**********************************************/
 body {
-  font-family: arial,sans-serif;
-  font-weight:bold;
-  color:#006496;
   overflow:hidden;
+  /* светло-синий фон */
+  background-color: #949fd4;
 }
 
+/*
 a {
   text-decoration:none;
   font-family: arial,sans-serif;
   font-weight:bold;
   font-size:16px;
-  cursor:pointer;
   color:#006496;
 }
 
+*/
 td {
   font-family: arial,sans-serif;
-  font-weight:bold;
-  font-size:16px;
-  color:#006496;
 }
 
 /**********************************************/
-/* some small classes */
+/* some small classes -- used only for tests  */
 
 .frame {
   border:2px solid #006496;
-  border-radius:5px;
-}
-
-.hframe {
-  border-bottom: 2px solid #006496;
-  border-left: 2px solid #006496;
   border-radius:5px;
 }
 
@@ -46,39 +37,91 @@ td {
   color:#006496;
 }
 
-/* затемнение - используется для подкладки под всплывающие диалоги*/
-.shade {
-  opacity:0.8;
-  background-color:#313131;
-}
-
+/* для добавления к кнопке - пока не знаю, надо ли */
 .edit_img {
   text-align:left;
   background: #ffffff url("img/edit.png") no-repeat right top;
 }
 
+/* для изменения курсора */
 .pointer {
   cursor:pointer;
 }
 
+/* кнопка верхнего меню */
 a.button {
+  /* рамка */
+  border:2px solid #006496;
+  border-radius:10px;
+  /* текст в центре, без подчеркивания, крупный */
   text-decoration:none;
   text-align:center;
-/*  display:block;*/
-  cursor:pointer;
-  padding:3px 5px;
-  margin: 0px 5px;
+  font-family: arial,sans-serif;
+  font-weight:bold;
+  font-size:20px;
+  /* расстояние от текста до края рамки*/
+  padding:5px 0px 15px;
+  margin: 0px 5px -20px -5px;
+  /* показывать как блочный элемент с фиксированной шириной
+     (чтобы расположить горизонтально, надо запихать в table)*/
+  width: 100px;
+  display: block;
+  /* белый фон, чтобы замазать все, что ниже*/
+  color:#006496;
+  background: #ffffff;
 }
 
-/* some small classes */
-
-.loginbtn {
-  padding:0px 0px 15px 0px;
+/* активная кнопка (вдобавок к a.button)*/
+a.active {
+  /* Добавим толстую нижнюю границу, чтобы забить закругления.
+     Изменим нижние padding и margin, чтобы кнопка высовывалась вниз на сколько надо.
+     Сдвиним кнопку вниз, чтобы скомпенсировать утолщение границы*/
+  border-bottom:8px solid #ffffff;
+  padding:5px 0px 8px;
+  margin: 0px 5px -13px -5px;
+  top: 3px;
+  position: relative;
+  z-index: 0;
 }
 
+/* кнопки выйти/войти (уже, чем остальные)*/
+a.login_btn {
+  /* рамка */
+  border:2px solid #006496;
+  border-radius:10px;
+  /* текст в центре, без подчеркивания, мельче */
+  text-decoration:none;
+  text-align:center;
+  font-family: arial,sans-serif;
+  font-weight:bold;
+  font-size:16px;
+  /* расстояние от текста до края рамки*/
+  padding:2px 5px;
+  margin: 0px 0px 0px 0px;
+  /* белый фон, чтобы замазать все, что ниже*/
+  color:#006496;
+  background: #ffffff;
+}
+
+/* иконки сервисов надо опустить немного */
+img.login_img{
+  top: 2px;
+  position: relative;
+}
+
+/* ссылки с именем пользователя */
+.user_face>a {
+  text-decoration:none;
+  font-family: arial,sans-serif;
+  font-weight:bold;
+  font-size:16px;
+  color:#005496;
+}
+/*
 .login_link {
   padding:3px 5px;
 }
+*/
 
 /* широкая линейка */
 hr.wide {
@@ -92,10 +135,16 @@ hr.normal {
   border-top:1px solid #006496;
 }
 
-.main_block {
+/**********************************************/
+/* Элементы сайта */
+
+/**********************************************/
+
+/* главная рамка */
+.mainframe {
   border:2px solid #006496;
-  border-radius:10px;
-  vertical-align: top;
+  border-radius:5px;
+  background-color:#ffffff;
 }
 
 /**********************************************/
@@ -103,7 +152,7 @@ hr.normal {
 
 /* div, заполняющий весь экран. Один нужен для popup-окна,
   второй, внутри него - для затенения остального */
-div.fullscreen {
+.fullscreen {
   position:fixed;
   width:100%;
   height:100%;
@@ -112,7 +161,13 @@ div.fullscreen {
   overflow:auto
 }
 
-/* Forma для popup-окна с фиксированной шириной */
+/* затемнение*/
+.shade {
+  opacity:0.8;
+  background-color:#313131;
+}
+
+/* Форма для popup-окна с фиксированной шириной */
 form.popup {
   position: absolute;
   width: 360px;
@@ -121,7 +176,10 @@ form.popup {
   top: 10%;
   padding:0px 40px;
   opacity: 1;
+  border:2px solid #006496;
+  border-radius:5px;
   background-color:#ffffff;
+  color:#006496;
 }
 
 /* popup close button*/
@@ -187,10 +245,10 @@ label {
   font-size:16px;
 }
 
-h2 {
+h1, h2, h3, h4{
   color: #006496;
-  padding:20px 35px;
-  margin:-15px -10px;
+  padding:20px 20px 0px;
+  margin:0px 0px;
   text-align:left;
   font-weight:bold;
 }

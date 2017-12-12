@@ -52,9 +52,9 @@ function mk_face(id, name, site){
 function mk_loginbtn(id, name, site){
   if (id == undefined) {
     return 'войти: '
-     + '<a class="login_btn" href="' + loginza_login_url  + '"><img class="login_img" alt="Loginza"  src="img/loginza.png"></a> '
      + '<a class="login_btn" href="' + facebook_login_url + '"><img class="login_img" alt="Facebook" src="img/fb.png"></a> '
      + '<a class="login_btn" href="' + google_login_url   + '"><img class="login_img" alt="Google"   src="img/go.png"></a> ';
+     + '<a class="login_btn" href="' + loginza_login_url  + '"><img class="login_img" alt="Loginza"  src="img/loginza.png"></a> '
   }
   else {
     return mk_face(id, name, site)

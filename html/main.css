@@ -1,7 +1,6 @@
 /**********************************************/
 body {
   overflow:hidden;
-  /* светло-синий фон */
   background-color: #949fd4;
 }
 
@@ -68,7 +67,7 @@ a.button {
   display: block;
   /* белый фон, чтобы замазать все, что ниже*/
   color:#006496;
-  background: #ffffff;
+  background:  #c3c3d4;
 }
 
 /* активная кнопка (вдобавок к a.button)*/
@@ -82,6 +81,7 @@ a.active {
   top: 3px;
   position: relative;
   z-index: 0;
+  background:  #ffffff;
 }
 
 /* кнопки выйти/войти (уже, чем остальные)*/
@@ -100,7 +100,7 @@ a.login_btn {
   margin: 0px 0px 0px 0px;
   /* белый фон, чтобы замазать все, что ниже*/
   color:#006496;
-  background: #ffffff;
+  background: #c3c3d4;
 }
 
 /* иконки сервисов надо опустить немного */
@@ -251,9 +251,12 @@ h1, h2, h3, h4{
   margin:0px 0px;
   text-align:left;
   font-weight:bold;
+  font-family: arial,sans-serif;
 }
 
 .submit_button {
+  font-family: arial,sans-serif;
+  font-size:16px;
   text-decoration:none;
   text-align:center;
   width:100%;

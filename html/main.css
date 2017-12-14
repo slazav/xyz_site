@@ -215,9 +215,13 @@ select {
   border:1px solid #006496;
   border-radius:5px;
   padding:5px;
-  margin: 10px 0px 10px -5px;
+  margin: 0px 0px 0px -5px;
   font-weight:bold;
   font-size:16px;
+}
+
+option {
+  margin: 0px 25px 0px 0px;
 }
 
 input[type=text] {
@@ -271,4 +275,9 @@ h1, h2, h3, h4{
   border-radius:5px;
   font-size:20px;
 }
+
+/* hide things which we do not want to show to everybody */
+.is_normal { visibility: hidden; }
+.is_moder  { visibility: hidden; }
+.is_admin  { visibility: hidden; }
 

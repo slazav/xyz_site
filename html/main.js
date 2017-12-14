@@ -1,5 +1,11 @@
-// Login URL
-// site variable should be defined before
+/*
+on_load
+ -> update_my_info
+    -> logout
+ -> update_user_list
+    -> on_set_level
+
+*/
 
 /////////////////////////////////////////////////////////////////
 // do request to a cgi script, call callback() or process_err()
@@ -24,11 +30,27 @@ function do_request(action, args, callback){
   xhttp.send();
 }
 
+/////////////////////////////////////////////////////////////////
 // process error
 function process_err(data){
   alert(data.error_type + ": " + data.error_message);
 }
 
+/////////////////////////////////////////////////////////////////
+// This function is run once after loading any html page
+// It runs following functions:
+//  - update_my_info (user information)
+//  - update_user_list (user list if any)
+function on_load(){
+
+  // we always want to check user information and fill the login form
+  document.cookie = "RETPAGE=" + document.URL;
+  do_request('my_info', '', update_my_info);
+
+  // if there is a user_list widget, do user_list request
+  var ll = document.getElementsByClassName("user_list");
+  if (ll.length) { do_request('user_list', '', update_user_list); }
+}
 
 /////////////////////////////////////////////////////////////////
 // make user face (external account information)
@@ -53,12 +75,12 @@ function mk_loginbtn(id, name, site){
   if (id == undefined) {
     return 'войти: '
      + '<a class="login_btn" href="' + facebook_login_url + '"><img class="login_img" alt="Facebook" src="img/fb.png"></a> '
-     + '<a class="login_btn" href="' + google_login_url   + '"><img class="login_img" alt="Google"   src="img/go.png"></a> ';
-     + '<a class="login_btn" href="' + loginza_login_url  + '"><img class="login_img" alt="Loginza"  src="img/loginza.png"></a> '
+     + '<a class="login_btn" href="' + google_login_url   + '"><img class="login_img" alt="Google"   src="img/go.png"></a> '
+     + '<a class="login_btn" href="' + loginza_login_url  + '"><img class="login_img" alt="Loginza"  src="img/loginza.png"></a> ';
   }
   else {
     return mk_face(id, name, site)
-      + ' <a class="login_btn" href="javascript:do_request(\'logout\', \'\', update_info)">выйти</a>';
+      + ' <a class="login_btn" href="javascript:do_request(\'logout\', \'\', update_my_info)">выйти</a>';
   }
 }
 
@@ -73,24 +95,7 @@ var mk_rlevel = function(l) {
   return null;};
 
 /////////////////////////////////////////////////////////////////
-// update user information
-function update_info(data){
-  var ll = document.getElementsByClassName("login_panel");
-  for (i=0; i<ll.length; i++){
-    ll[i].innerHTML = mk_loginbtn(data._id, data.name, data.site); }
-
-  var ll = document.getElementsByClassName("user_rlevel");
-  for (i=0; i<ll.length; i++){
-    ll[i].innerHTML = mk_rlevel(data.level); }
-
-  var ll = document.getElementsByClassName("user_level");
-  for (i=0; i<ll.length; i++){
-    ll[i].innerHTML = data.level; }
-}
-
-
-/////////////////////////////////////////////////////////////////
-// update userlist
+// Convert unix timestamp to date YYYY-MM-DD
 function tstamp2date(tstamp){
   var a = new Date(tstamp * 1000);
   var y = a.getFullYear();
@@ -102,16 +107,44 @@ function tstamp2date(tstamp){
   return y + '-' + m + '-' + d;
 }
 
+
 /////////////////////////////////////////////////////////////////
-// on_set_level
-function on_set_level(id,level){
-  var action = function(data){ do_request('user_list', '', update_userlist); }
-  do_request('set_level', '&id='+id+'&level='+level, action);
+// update user information
+function update_my_info(data){
+  var ll = document.getElementsByClassName("login_panel");
+  for (i=0; i<ll.length; i++){
+    ll[i].innerHTML = mk_loginbtn(data._id, data.name, data.site); }
+
+  var ll = document.getElementsByClassName("user_rlevel");
+  for (i=0; i<ll.length; i++){
+    ll[i].innerHTML = mk_rlevel(data.level); }
+
+  var ll = document.getElementsByClassName("user_level");
+  for (i=0; i<ll.length; i++){
+    ll[i].innerHTML = data.level; }
+
+  // open objects with is_normal class
+  if (data.level >= 0) {
+    var ll = document.getElementsByClassName("is_normal");
+    for (i=0; i<ll.length; i++){ ll[i].style.visibility = "visible";}
+  }
+  // open objects with is_moder class
+  if (data.level >= 1) {
+    var ll = document.getElementsByClassName("is_moder");
+    for (i=0; i<ll.length; i++){ ll[i].style.visibility = "visible"; }
+  }
+  // open objects with is_admin class
+  if (data.level >= 2) {
+    var ll = document.getElementsByClassName("is_admin");
+    for (i=0; i<ll.length; i++){ ll[i].style.visibility = "visible"; }
+  }
+
 }
 
 /////////////////////////////////////////////////////////////////
-// update userlist
-function update_userlist(data){
+// Update user list
+// 
+function update_user_list(data){
 
   var userlist = "<table cellpadding=5><tr>"
                + "<th>Пользователь</th>"
@@ -139,20 +172,15 @@ function update_userlist(data){
   }
   userlist += "</table>";
 
-  var ll = document.getElementsByClassName("userlist");
+  var ll = document.getElementsByClassName("user_list");
   for (i=0; i<ll.length; i++){
     ll[i].innerHTML = userlist;
   }
 }
 
 /////////////////////////////////////////////////////////////////
-// This function is run once after loading an html page
-function on_load(){
-  document.cookie = "RETPAGE=" + document.URL;
-  do_request('my_info', '', update_info);
-
-  var ll = document.getElementsByClassName("userlist");
-  if (ll.length) {
-    do_request('user_list', '', update_userlist);
-  }
+// on_set_level
+function on_set_level(id,level){
+  var action = function(data){ do_request('user_list', '', update_user_list); }
+  do_request('set_level', '&id='+id+'&level='+level, action);
 }

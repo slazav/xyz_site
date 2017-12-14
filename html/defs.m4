@@ -35,6 +35,7 @@ define(MAIN_END,`</body>
 
 # Пункт меню: если имя файла совпадает со ссылкой, то к кнопке добавляется класс active:
 define(MENU_BUTTON, `<a href="$1" class="button ifelse(FILE_NAME, $1, `active')">$2</a>')
+define(MENU_BUTTON_M, `<a href="$1" class="button ifelse(FILE_NAME, $1, `active') is_moder">$2</a>')
 
 define(MAIN_PANEL_BEGIN,`
   <!-- Main table -->
@@ -48,6 +49,7 @@ define(MAIN_PANEL_BEGIN,`
       <td>MENU_BUTTON(texts.htm, `Тексты')</td>
       <td>MENU_BUTTON(map.htm,   `Карта')</td>
       <td>MENU_BUTTON(help.htm,  `Справка')</td>
+      <td>MENU_BUTTON_M(users.htm, `Люди')</td>
       <td width = 100% align=right class="login_panel"> </td>
     </tr></table>
     </td></tr>

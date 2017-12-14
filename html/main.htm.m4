@@ -1,6 +1,16 @@
 MAIN_BEGIN
 MAIN_PANEL_BEGIN
 
+<script>
+  function on_new() {
+    div_show('form1')
+  }
+  function on_edit(id) {
+  }
+  function on_delete(id) {
+  }
+</script>
+
       <h3>Тут должна быть лента новостей</h3>
       <p>Написать: <img src="img/edit.png" class="pointer"
          onclick="div_show('form1')" alt="Добавить новое сообщение">
@@ -15,8 +25,14 @@ MAIN_PANEL_END
     <img class="close" src="img/x.png" onclick ="div_hide('form1')">
     <h2>Новое собщение</h2>
     <hr class="wide">
-    <input id="name" name="title" placeholder="Заголовок" type="text">
-    <textarea id="msg" name="text" placeholder="Текст"></textarea>
+    <input id="title" name="title" placeholder="Заголовок" type="text">
+    <textarea id="text" name="text" placeholder="Текст"></textarea>
+    <p>Тип новости:</p>
+    <select id="type" name="type">
+      <option>1</option>
+      <option>2</option>
+      <option>3</option>
+    </select>
     <a href="javascript:%20publish('form1')" class="submit_button">Опубликовать</a>
   </form>
   </div></div>

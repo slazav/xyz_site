@@ -149,21 +149,21 @@ sub show_object{
 
 sub list_objects{
   my $coll = shift; # object collection
-  my $skip   = shift; 
-  my $limit  = shift;
+  my $skip   = shift || 0;
+  my $limit  = shift || 25;
 
   # open object collection, get object information
   my $client = MongoDB->connect();
   my $db = $client->get_database( $database );
   my $objects = $db->get_collection( $coll );
 
-  my $query_result = $objects->find({'_id'=>$id}, {'limit'=>$limit, 'skip'=>$skip})->result;
+  my $query_result = $objects->find({}, {'limit'=>$limit, 'skip'=>$skip})->result;
 
   my $res=[];
   while ( my $next = $query_result->next ) {
     push @{$res}, $next;
   }
-  return JSON->new->encode($res);
+  return $res;
 }
 
 1;

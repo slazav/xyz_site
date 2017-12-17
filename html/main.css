@@ -4,18 +4,25 @@ body {
   background-color: #949fd4;
 }
 
-/*
-a {
-  text-decoration:none;
+/**********************************************/
+/* text fonts and colors                      */
+* {
   font-family: arial,sans-serif;
-  font-weight:bold;
-  font-size:16px;
-  color:#006496;
+  font-size: large;
+}
+h1,h2,h3,h4 {
+  color: #006496;
+  text-align:left;
+  margin: 10px 0px 0px;
 }
 
-*/
-td {
-  font-family: arial,sans-serif;
+h3 { font-size: x-large; }
+h1,h2 { font-size: xx-large; }
+
+hr {
+  margin:0px 0px;
+  border:0;
+  border-top:1px solid #006496;
 }
 
 /**********************************************/
@@ -47,6 +54,16 @@ td {
   cursor:pointer;
 }
 
+/**********************************************/
+/* Элементы сайта */
+
+/* главная рамка */
+.mainframe {
+  border:2px solid #006496;
+  border-radius:5px;
+  background-color:#ffffff;
+}
+
 /* кнопка верхнего меню */
 a.button {
   /* рамка */
@@ -55,9 +72,8 @@ a.button {
   /* текст в центре, без подчеркивания, крупный */
   text-decoration:none;
   text-align:center;
-  font-family: arial,sans-serif;
   font-weight:bold;
-  font-size:20px;
+  font-size:x-large;
   /* расстояние от текста до края рамки*/
   padding:5px 0px 15px;
   margin: 0px 5px -20px -5px;
@@ -92,9 +108,7 @@ a.login_btn {
   /* текст в центре, без подчеркивания, мельче */
   text-decoration:none;
   text-align:center;
-  font-family: arial,sans-serif;
   font-weight:bold;
-  font-size:16px;
   /* расстояние от текста до края рамки*/
   padding:2px 5px;
   margin: 0px 0px 0px 0px;
@@ -110,42 +124,12 @@ img.login_img{
 }
 
 /* ссылки с именем пользователя */
-.user_face>a {
-  text-decoration:none;
-  font-family: arial,sans-serif;
-  font-weight:bold;
-  font-size:16px;
+.user_face > a {
   color:#005496;
-}
-/*
-.login_link {
-  padding:3px 5px;
-}
-*/
-
-/* широкая линейка */
-hr.wide {
-  margin:10px -40px;
-  border:0;
-  border-top:1px solid #006496;
-}
-hr.normal {
-  margin:0px 0px;
-  border:0;
-  border-top:1px solid #006496;
+  text-decoration:none;
+  font-weight:bold;
 }
 
-/**********************************************/
-/* Элементы сайта */
-
-/**********************************************/
-
-/* главная рамка */
-.mainframe {
-  border:2px solid #006496;
-  border-radius:5px;
-  background-color:#ffffff;
-}
 
 /**********************************************/
 /* Всплывающий диалог */
@@ -161,7 +145,7 @@ hr.normal {
   overflow:auto
 }
 
-/* затемнение*/
+/* затемнение */
 .shade {
   opacity:0.8;
   background-color:#313131;
@@ -183,7 +167,7 @@ form.popup {
 }
 
 /* popup close button*/
-img.close {
+.popup > img.close {
   position:absolute;
   right:-10px;
   top:-10px;
@@ -193,8 +177,7 @@ img.close {
 /**********************************************/
 /* Элементы формы */
 
-
-textarea {
+.popup > textarea {
   height:200px;
   resize:none;
   width:100%;
@@ -202,11 +185,9 @@ textarea {
   border-radius:5px;
   padding:5px;
   margin: 10px 0px 10px -5px;
-  font-weight:bold;
-  font-size:16px;
 }
 
-select {
+.popup > select {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;       /* remove default arrow */
@@ -217,48 +198,43 @@ select {
   padding:5px;
   margin: 0px 0px 0px -5px;
   font-weight:bold;
-  font-size:16px;
 }
 
-option {
+.popup > option {
   margin: 0px 25px 0px 0px;
 }
 
-input[type=text] {
+.popup > input[type=text] {
   width:100%;
   border:1px solid #006496;
   border-radius:5px;
   padding:5px;
   margin: 10px 0px 10px -5px;
   font-weight:bold;
-  font-size:16px;
 }
 
-input[type=checkbox] {
+.popup > input[type=checkbox] {
   border: 1px solid #006496;
   border-radius:2px;
   padding: 15px;
 }
 
-label {
+.popup > label {
   width:100%;
   color: #006496;
   padding:5px 10px;
   margin: 10px 10px 10px -5px;
   font-weight:bold;
-  font-size:16px;
 }
 
-h1, h2, h3, h4{
-  color: #006496;
-  padding:20px 20px 0px;
-  margin:0px 0px;
-  text-align:left;
-  font-weight:bold;
-  font-family: arial,sans-serif;
+/* широкая линейка */
+.popup > hr {
+  margin:10px -40px;
+  border:0;
+  border-top:1px solid #006496;
 }
 
-.submit_button {
+.popup > .submit_button {
   font-family: arial,sans-serif;
   font-size:16px;
   text-decoration:none;
@@ -281,3 +257,11 @@ h1, h2, h3, h4{
 .is_moder  { visibility: hidden; }
 .is_admin  { visibility: hidden; }
 
+/**********************************************/
+/* news */
+
+.news_title {
+  width: 100%;
+  background-color: #c3c3d4;
+  padding: 2px;
+}

@@ -15,7 +15,7 @@ use objects;
 ################################################
 
 try {
-  my $o = list_objects('news', param('skip') || '', param('limit') || '');
+  my $o = list_objects('news', param('skip') || 0, param('limit') || 0);
 
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->encode($o), "\n";

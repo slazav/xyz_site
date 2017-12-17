@@ -1,39 +1,28 @@
 MAIN_BEGIN
 MAIN_PANEL_BEGIN
 
-<script>
-  function on_new() {
-    div_show('form1')
-  }
-  function on_edit(id) {
-  }
-  function on_delete(id) {
-  }
-</script>
-
-      <h3>Тут должна быть лента новостей</h3>
-      <p>Написать: <img src="img/edit.png" class="pointer"
-         onclick="div_show('form1')" alt="Добавить новое сообщение">
+  <div class="news_list"></div>
 
 MAIN_PANEL_END
 
   <!-- Всплывающий диалог нового сообщения -->
-  <div style="display:none;" id="form1" class="fullscreen">
+  <div style="display:none;" id="news_popup" class="fullscreen">
   <div class="fullscreen shade"></div>
   <!-- div class="i_popup" -->
-  <form action="#" class="popup" id="form1" method="post" name="form">
-    <img class="close" src="img/x.png" onclick ="div_hide('form1')">
+  <form action="#" class="popup" id="news_form">
+    <img class="close" src="img/x.png" onclick ="div_hide('news_popup')">
     <h2>Новое собщение</h2>
     <hr class="wide">
-    <input id="title" name="title" placeholder="Заголовок" type="text">
+    <input  name="id" type="hidden">
+    <input  name="title" placeholder="Заголовок" type="text">
     <textarea id="text" name="text" placeholder="Текст"></textarea>
-    <p>Тип новости:</p>
-    <select id="type" name="type">
+    <h4>Тип новости:</h4>
+    <select name="type">
       <option>1</option>
       <option>2</option>
       <option>3</option>
     </select>
-    <a href="javascript:%20publish('form1')" class="submit_button">Опубликовать</a>
+    <a href="javascript:on_news_write()" class="submit_button">Опубликовать</a>
   </form>
   </div></div>
 

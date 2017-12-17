@@ -11,6 +11,15 @@ on_load
 // do request to a cgi script, call callback() or process_err()
 function do_request(action, args, callback){
   var xhttp = new XMLHttpRequest();
+
+  // convert args object to a GET string
+  var str = [];
+  for(var p in args)
+    if (args.hasOwnProperty(p)) {
+      str.push(encodeURIComponent(p) + "=" + encodeURIComponent(args[p]));
+    }
+  args = str.join("&");
+
   xhttp.onreadystatechange = function() {
     if (xhttp.readyState == 4 && xhttp.status == 200) {
       if (xhttp.responseText == ""){ return; }
@@ -45,11 +54,16 @@ function on_load(){
 
   // we always want to check user information and fill the login form
   document.cookie = "RETPAGE=" + document.URL;
-  do_request('my_info', '', update_my_info);
+  do_request('my_info', {}, update_my_info);
 
   // if there is a user_list widget, do user_list request
   var ll = document.getElementsByClassName("user_list");
-  if (ll.length) { do_request('user_list', '', update_user_list); }
+  if (ll.length) { do_request('user_list', {}, update_user_list); }
+
+  // if there is a news_list widget, do news_list request
+  var ll = document.getElementsByClassName("news_list");
+  if (ll.length) { do_request('news_list', {}, update_news_list); }
+
 }
 
 /////////////////////////////////////////////////////////////////
@@ -80,7 +94,7 @@ function mk_loginbtn(id, name, site){
   }
   else {
     return mk_face(id, name, site)
-      + ' <a class="login_btn" href="javascript:do_request(\'logout\', \'\', update_my_info)">выйти</a>';
+      + ' <a class="login_btn" href="javascript:do_request(\'logout\', {}, update_my_info)">выйти</a>';
   }
 }
 
@@ -177,10 +191,53 @@ function update_user_list(data){
     ll[i].innerHTML = userlist;
   }
 }
+/////////////////////////////////////////////////////////////////
+function update_news_list(data){
+
+  var news_list="<img src='img/edit.png' class='pointer' align='right'\n"
+           + "  onclick='div_show(\"news_popup\");' alt='Добавить новое сообщение'>\n"
+           + "<br><br>\n";
+
+ for (i=0; i<data.length; i++){
+    news_list += "<h3 class='news_title'>" + data[i].title + "</h3>\n"
+              +  "<p class='news_body'>" + data[i].text + "</p>\n";
+  }
+
+  var ll = document.getElementsByClassName("news_list");
+  for (i=0; i<ll.length; i++){
+    ll[i].innerHTML = news_list;
+  }
+}
 
 /////////////////////////////////////////////////////////////////
 // on_set_level
 function on_set_level(id,level){
-  var action = function(data){ do_request('user_list', '', update_user_list); }
-  do_request('set_level', '&id='+id+'&level='+level, action);
+  var action = function(data){ do_request('user_list', {}, update_user_list); }
+  do_request('set_level', {id: id, level: level}, action);
 }
+
+/////////////////////////////////////////////////////////////////
+// working with news
+
+function div_show(id) { document.getElementById(id).style.display = "block"; }
+function div_hide(id) { document.getElementById(id).style.display = "none"; }
+
+function on_news_write(id, title, text, type) {
+  f=document.getElementById("news_form");
+  args = {};
+  args.id    = f.elements[0].value;
+  args.title = f.elements[1].value;
+  args.text  = f.elements[2].value;
+  args.type  = f.elements[3].value;
+  do_request('news_write', args, after_news_write);
+}
+function after_news_write(data) {
+  div_hide('news_popup');
+  f=document.getElementById("news_form").reset();
+  update_news_list(data);
+}
+
+function on_news_delete(id) {
+  do_request('news_delete', {id: id, del: 1}, "");
+}
+

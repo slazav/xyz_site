@@ -12,6 +12,7 @@ package safe_html;
 #     Tag 'a'   with arguments 'name', 'href'.
 #     In href argument word 'javascript:' is removed.
 #     All arguments should be quoted by ' or ".
+#  Replace newline characters by <br>
 
 BEGIN {
   require Exporter;
@@ -98,6 +99,7 @@ sub cleanup_htm {
     }
 
   }
+  $out =~ s/\n/\n<br>/g;
   return $out;
 }
 

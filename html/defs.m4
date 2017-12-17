@@ -18,13 +18,6 @@ define(MAIN_BEGIN,`<html>
   <LINK href="main.css" rel="stylesheet" type="text/css">
   <script type="text/JavaScript" src="site.js"></script>
   <script type="text/JavaScript" src="main.js"></script>
-
-  <script>
-    function publish(id) { alert("OK"); };
-    // show/hide popup
-    function div_show(id) { document.getElementById(id).style.display = "block"; }
-    function div_hide(id) { document.getElementById(id).style.display = "none"; }
-  </script>
 </head>
 <body onload="on_load()" class="ltblue">
 ')

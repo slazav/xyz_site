@@ -37,7 +37,9 @@ my $logf = "$site_wwwdir/logs/login.txt";
 my $ret  = cookie('RETPAGE') || '';
 try {
 
-  write_log($logf, "Login script called from: $ENV{'REMOTE_HOST'} ($ENV{'REMOTE_ADDR'})");
+  my $hh = $ENV{'REMOTE_HOST'} || "";
+  my $aa = $ENV{'REMOTE_ADDR'} || "";
+  write_log($logf, "Login script called from: $hh ($aa)");
   my ($id, $name, $site, $info);
 
   ######## GOOGLE login ########

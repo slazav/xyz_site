@@ -10,6 +10,7 @@ use JSON;
 use site;
 use common;
 use objects;
+use safe_html;
 
 
 ################################################
@@ -18,9 +19,9 @@ try {
 
   my $sess = get_session();
   my $text;
-  $text->{title} = param('title') || '';
-  $text->{text}  = param('text')  || '';
-  $text->{tags}  = param('tags')  || '';
+  $text->{title} = cleanup_txt(param('title')||'', 1000);
+  $text->{text}  = cleanup_htm(param('text')||'', 10000);
+  $text->{type}  = cleanup_txt(param('type')||'',   100);
 
   write_object $sess, 'news', $text;
 

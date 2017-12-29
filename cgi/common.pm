@@ -2,7 +2,6 @@ package common;
 use site;
 use CGI ":standard";
 use MongoDB;
-use POSIX qw(strftime); # date formatting
 
 BEGIN {
   require Exporter;
@@ -277,17 +276,15 @@ sub object_expand {
   my $users = $db->get_collection('users');
 
   # build human-readable user information
-  $o->{cuser_full} = $users->find_one({'_id'=>$o->{cuser}});
+  my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
+  $o->{cuser_info} = $users->find_one({'_id'=>$o->{cuser}}, $pr);
 
   if ($o->{muser} != $o->{cuser}){
-    $o->{muser_full} = $users->find_one({'_id'=>$o->{muser}});
+    $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr);
   }
   else {
-    $o->{muser_full} = $o->{cuser_full};
+    $o->{muser_info} = $o->{cuser_info};
   }
-  # make human-readable dates
-  $o->{ctime_fmt} = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
-  $o->{mtime_fmt} = strftime "%Y-%m-%d %H:%M", localtime($o->{mtime});
 }
 
 ############################################################

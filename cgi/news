@@ -8,6 +8,7 @@ use strict;
 use warnings;
 use Try::Tiny;
 use CGI ':standard';
+use POSIX qw(strftime);
 use JSON;
 use site;
 use common;
@@ -39,15 +40,17 @@ try {
 
   # print one
   if ($id) {
-    my $cu = mk_face($o->{cuser_full});
+    my $cu = mk_face($o->{cuser_info});
+    my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
     print "<div class='obj_top_panel'>$cu: <a href='news?id=$o->{_id}'>$o->{title}</a></div>\n";
     print "<p class='news_body'>$o->{text}</p>\n";
     my $src = exists $o->{origin}? " <a href='$o->{origin}'>(источник)</a>":"";
-    print "<div class='obj_bottom_panel'><i>$o->{ctime_fmt}</i>$src</div>\n";
+    print "<div class='obj_bottom_panel'><i>$ct</i>$src</div>\n";
   }
   # print many
   else {
 
+    # navigation panel
     my $n1 = $skip+1;
     my $n2 = $skip+1+$num;
     my $np = ($n1-$num-1 < 0)? 0:$n1-$num-1;
@@ -58,7 +61,8 @@ try {
       "</div>\n";
 
     foreach my $o (@{$objects}) {
-      my $cu = mk_face($o->{cuser_full});
+      my $cu = mk_face($o->{cuser_info});
+      my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
       if ($titles){
         print "<div class='title_panel'>$cu: <a href='news?id=$o->{_id}'>$o->{title}</a> <i>($o->{ctime_fmt})</i></div>\n";
       }
@@ -66,7 +70,7 @@ try {
         print "<hr><div class='obj_top_panel'>$cu: <a href='news?id=$o->{_id}'>$o->{title}</a></div>\n";
         print "<p class='news_body'>$o->{text}</p>\n";
         my $src = exists $o->{origin}? " <a href='$o->{origin}'>(источник)</a>":"";
-        print "<div class='obj_bottom_panel'><i>$o->{ctime_fmt}</i>$src</div>\n";
+        print "<div class='obj_bottom_panel'><i>$ct</i>$src</div>\n";
       }
     }
   }

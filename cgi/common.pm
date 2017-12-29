@@ -169,6 +169,32 @@ sub user_list {
 }
 
 ############################################################
+# check permissions
+sub check_perm {
+  my $coll = shift;
+  my $action = shift; # create, edit, delete
+  my $mylevel   = shift;
+  my $myobject  = shift || 0;
+  my $mycomment = shift || 0;
+
+  if ($coll eq 'news') {
+    return 1 if $action eq 'create' && ($mylevel >= $LEVEL_NORM);
+    return 1 if $action eq 'edit'   && ($myobject || $mylevel >= $LEVEL_ADMIN);
+    return 1 if $action eq 'delete' && ($myobject || $mylevel >= $LEVEL_MODER);
+  }
+  if ($coll eq 'pcat' || $coll eq 'geo') {
+    return 1 if $action eq 'create' && ($mylevel >= $LEVEL_NORM);
+    return 1 if $action eq 'edit'   && ($myobject || $mylevel >= $LEVEL_NORM);
+    return 1 if $action eq 'delete' && ($myobject || $mylevel >= $LEVEL_MODER);
+  }
+  if ($coll eq 'comm') {
+    return 1 if $action eq 'create' && ($mylevel >= $LEVEL_NORM);
+    return 1 if $action eq 'edit'   && ($mycomment);
+    return 1 if $action eq 'delete' && ($mycomment || $myobject || $mylevel >= $LEVEL_MODER);
+  }
+}
+
+############################################################
 sub write_object{
   my $db   = shift || open_db(); # database
   my $coll = shift; # object collection
@@ -183,7 +209,7 @@ sub write_object{
   # set muser/mtime fields
   $obj->{muser} = $user_id;
   $obj->{mtime} = time;
-  # user can't set these fields:
+  # user can't set these fields directly:
   delete $obj->{del};
   delete $obj->{arc};
   delete $obj->{prev};
@@ -199,8 +225,8 @@ sub write_object{
     die "can't find object: $obj_id" unless $o;
 
     # check user permissions
-    die "you can not modify objects, created by another users"
-      if ($o->{cuser} ne $user_id && $level<$LEVEL_MODER);
+    die "permission denied"
+      if check_perm($coll, 'edit', $level, $o->{cuser} eq $user_id);
 
     # save old information:
     $o->{_id}   = next_id($db, "$coll");
@@ -227,6 +253,9 @@ sub write_object{
     $obj->{ctime} = $obj->{mtime};
     $obj->{cuser} = $obj->{muser};
 
+    # check user permissions
+    die "permission denied" if check_perm($coll, 'create', $level);
+
     # create new object
     my $res = $objects->insert_one($obj);
     die "Can't put object into the database"
@@ -252,26 +281,31 @@ sub delete_object{
   # open object collection, get old object information
   my $objects = $db->get_collection( $coll );
 
+  my $obj = $objects->find_one({'_id'=>$obj_id});
+  die "can't find object: $obj_id" unless $obj;
+
+  # check user permissions
+  die "permission denied"
+    if check_perm($coll, 'delete', $level, $obj->{cuser} eq $u->{_id});
+
   my $upd = {'$set' => {
     'dtime' => time,
     'duser' => $u->{_id},
     'del'   => $del }};
 
-  my $o;
-  if ($u->{level} < $LEVEL_MODER){
-    $u = $objects->find_one_and_update(
-               {'_id' => $id, 'cuser' => $u->{_id}}, $upd);
-  } else {
-    $u = $objects->find_one_and_update({'_id' => $id}, $upd);
-  }
-  write_log($obj_log, "DEL $coll: " . JSON->new->canonical()->encode($o) );
+  $u = $objects->find_one_and_update({'_id' => $id}, $upd);
+  die "Can't write an object" unless $u;
+
+  write_log($obj_log, "DEL $coll: " . JSON->new->canonical()->encode($obj) );
   return {"ret" => 0};
 }
 
 ############################################################
-# add additional fields
+# add additional fields for show_object and list_objects
 sub object_expand {
-  my $db   = shift || open_db(); # database
+  my $db   = shift; # database
+  my $coll = shift; # collection name
+  my $me   = shift; # user
   my $o    = shift;
   my $users = $db->get_collection('users');
 
@@ -285,6 +319,11 @@ sub object_expand {
   else {
     $o->{muser_info} = $o->{cuser_info};
   }
+  my $level = $me->{level} || $LEVEL_ANON;
+  my $my_id = $me->{_id} || "";
+  $o->{can_edit}   = 1 if check_perm($coll, 'edit', $level, $o->{cuser} eq $my_id);
+  $o->{can_delete} = 1 if check_perm($coll, 'delete', $level, $o->{cuser} eq $my_id);
+
 }
 
 ############################################################
@@ -294,12 +333,13 @@ sub show_object{
   my $id   = shift; # object id
 
   die "id is empty" unless ($id);
+  my $me = get_my_info($db);
 
   # open object collection, get object information
   my $objects = $db->get_collection( $coll );
   my $ret = $objects->find_one({'_id' => $id + 0});
 
-  object_expand($db, $ret);
+  object_expand($db, $coll, $me, $ret);
 
   die "can't find object $id in the database $coll" unless $ret;
   return $ret;
@@ -312,6 +352,8 @@ sub list_objects{
   my $skip   = shift || 0;
   my $limit  = shift || 25;
 
+  my $me = get_my_info($db);
+
   # open object collection, get object information
   my $objects = $db->get_collection( $coll );
   my $query_result = $objects->find({},
@@ -319,7 +361,7 @@ sub list_objects{
 
   my $ret=[];
   while ( my $next = $query_result->next ) {
-    object_expand($db, $next);
+    object_expand($db, $coll, $me, $next);
     push @{$ret}, $next;
   }
   return $ret;

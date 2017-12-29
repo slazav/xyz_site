@@ -1,5 +1,8 @@
 package site;
 
+# Site-specific parameters, filled automatically with m4
+# Some parameters are secret and can not be published.
+
 BEGIN {
   require Exporter;
   our $VERSION = 1.00;

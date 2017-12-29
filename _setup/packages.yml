@@ -9,4 +9,5 @@
       - { name: 'mongodb' }
       - { name: 'libcgi-pm-perl' }
       - { name: 'libmongodb-perl' }
+      - { name: 'libxml-simple-perl' }
       - { name: 'git' }

@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+
+## HTML output for pcat page
+
+################################################
+
+use strict;
+use warnings;
+use Try::Tiny;
+use common;
+use html;
+
+try {
+  my $db = open_db;
+  my $u  = get_my_info($db);
+
+  print_head($u);
+  print "<h3>Тут должен быть каталог походов</h3>\n";
+  print_tail();
+}
+catch {
+  print_error($_, 'html');
+}

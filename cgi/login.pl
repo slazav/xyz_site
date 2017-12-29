@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
-# Login CGI script (Facebook).
-# Get facebook code, ask for access token and then for user information.
+# Login CGI script.
+# Get code, ask for access token and then for user information.
 # Create a session, set cookie, put information into DB.
 # if RETPAGE cookie is set, redirect to this page, otherwise
 # return json with ret:0 or with ret:1 and error_message set.
@@ -30,8 +30,6 @@ use JSON;
 use site;
 use common;
 
-my $logf = "$site_wwwdir/logs/login.txt";
-
 ################################################
 
 my $ret  = cookie('RETPAGE') || '';
@@ -39,7 +37,7 @@ try {
 
   my $hh = $ENV{'REMOTE_HOST'} || "";
   my $aa = $ENV{'REMOTE_ADDR'} || "";
-  write_log($logf, "Login script called from: $hh ($aa)");
+  write_log($usr_log, "Login script called from: $hh ($aa)");
   my ($id, $name, $site, $info);
 
   ######## GOOGLE login ########
@@ -63,7 +61,7 @@ try {
       'code'          => $code
     };
     $info = $http->post_form($url, $post_data)->{content};
-    write_log($logf, "Get Google token: $info");
+    write_log($usr_log, "Get Google token: $info");
     my $data  = decode_json $info;
     my $token = $data->{access_token};
     die "Can't get access tocken from Google" unless $token;
@@ -73,7 +71,7 @@ try {
     $url = "https://www.googleapis.com/oauth2/v1/userinfo?" .
            $http->www_form_urlencode($post_data);
     $info = $http->get($url)->{content};
-    write_log($logf, "Get Google userinfo: $info");
+    write_log($usr_log, "Get Google userinfo: $info");
     $data  = decode_json $info;
 
     die $data->{error}->{message} if $data->{error} && $data->{error}->{message};
@@ -99,7 +97,7 @@ try {
                    "redirect_uri=$site_url/cgi/login_fb.pl&".
                    "code=$code&scope=public_profile";
     $info = $http->get($test_url)->{content};
-    write_log($logf, "Get Facebook token: $info");
+    write_log($usr_log, "Get Facebook token: $info");
     my $data  = decode_json $info;
     my $token = $data->{access_token};
     die "Can't get access tocken from facebook" unless $token;
@@ -108,7 +106,7 @@ try {
     $test_url = "https://graph.facebook.com/me?".
                 "access_token=$token";
     $info = $http->get($test_url)->{content};
-    write_log($logf, "Get Facebook userinfo: $info");
+    write_log($usr_log, "Get Facebook userinfo: $info");
     $data  = decode_json $info;
     $name = $data->{name};
     $id   = "https://www.facebook.com/$data->{id}";
@@ -128,7 +126,7 @@ try {
     # ask loginza about this token
     my $http = HTTP::Tiny->new();
     $info=$http->get($test_url)->{content};
-    write_log($logf, "Loginza: $info");
+    write_log($usr_log, "Loginza: $info");
     my $data  = decode_json $info;
 
     # die on error
@@ -154,7 +152,7 @@ try {
     if ($id =~ m|plus.google.com|) { $site='gplus';}
     if ($id =~ m|openid.yandex.ru|){ $site='yandex';}
     if ($id =~ m|vk.com|)          { $site='vk';}
-    if ($id =~ m|^http://([^\.]+).livejournal.com|){ $site = 'lj'; $name = $1;}
+    if ($id =~ m|^https?://([^\.]+).livejournal.com|){ $site = 'lj'; $name = $1;}
   }
   else {
     die "Unknown login provider";
@@ -165,15 +163,14 @@ try {
   die "Not enough user information"
     if $id eq '' || $name eq '' || $site eq '';
 
-  write_log($logf, "User: $name @ $site ($id)");
+  write_log($usr_log, "User: $name @ $site ($id)");
 
   # create a session
   sub rndStr{ join '', @_[ map{ rand @_ } 1 .. shift ] }
   my $sess = rndStr(25, 'A'..'Z', '0'..'9');
 
   # open user database
-  my $client = MongoDB->connect();
-  my $db = $client->get_database( $database );
+  my $db = open_db();
   my $users = $db->get_collection( 'users' );
 
   # put information into the database
@@ -209,7 +206,7 @@ try {
   my $cookie = cookie(-name=>'SESSION', -value=>$sess,
                       -expires=>'+1y', -host=>$site_url) if $sess;
 
-  write_log($logf, "Login OK");
+  write_log($usr_log, "Login OK");
 
   # redirect if needed
   if ($ret){ print redirect (-uri=>$ret, -cookie=>$cookie); }
@@ -220,7 +217,7 @@ try {
 }
 catch {
   chomp;
-  write_log($logf, "Login error: $_");
+  write_log($usr_log, "$0 error: $_");
   if ($ret){ print redirect (-uri=>$ret); }
   else {
     print header (-type=>'application/json', -charset=>'utf-8');

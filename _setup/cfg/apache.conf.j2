@@ -13,6 +13,13 @@
     AllowOverride None
   </Directory>
 
+  ScriptAlias /news  /var/www/test/cgi/news
+  ScriptAlias /pcat  /var/www/test/cgi/pcat
+  ScriptAlias /texts /var/www/test/cgi/texts
+  ScriptAlias /map   /var/www/test/cgi/map
+  ScriptAlias /users /var/www/test/cgi/users
+  ScriptAlias /help  /var/www/test/cgi/help
+
   LogLevel warn
 
   <Directory "{{ wwwdir }}/cgi">

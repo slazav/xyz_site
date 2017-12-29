@@ -46,6 +46,19 @@ function process_err(data){
 }
 
 /////////////////////////////////////////////////////////////////
+// get URL parameters
+// See: https://stackoverflow.com/questions/979975/how-to-get-the-value-from-the-get-parameters
+function get_params() {
+  var qs = document.location.search;
+  qs = qs.split('+').join(' ');
+  var params = {}, tokens, re = /[?&]?([^=]+)=([^&]*)/g;
+  while (tokens = re.exec(qs)) {
+    params[decodeURIComponent(tokens[1])] = decodeURIComponent(tokens[2]);
+  }
+  return params;
+}
+
+/////////////////////////////////////////////////////////////////
 // This function is run once after loading any html page
 // It runs following functions:
 //  - update_my_info (user information)
@@ -62,9 +75,23 @@ function on_load(){
 
   // if there is a news_list widget, do news_list request
   var ll = document.getElementsByClassName("news_list");
-  if (ll.length) { do_request('news_list', {}, update_news_list); }
+  if (ll.length) {
+    var p = get_params();
+    var args = {};
+    if (p.id != undefined){
+      args.id = p.id;
+      do_request('news_show', args, update_news_list);
+    }
+    else {
+      args.skip = p.skip;
+      args.num = p.num;
+      do_request('news_list', args, update_news_list);
+    }
+  }
 
 }
+
+document.addEventListener("DOMContentLoaded", on_load);
 
 /////////////////////////////////////////////////////////////////
 // make user face (external account information)
@@ -77,6 +104,7 @@ function mk_face(id, name, site){
       if (site == 'yandex') return 'img/ya.png';
       if (site == 'google') return 'img/go.png';
       if (site == 'gplus')  return 'img/gp.png';
+      if (site == 'mailru') return 'img/mr.gif';
       return "";};
   return '<span class="user_face"><a href="' + id + '">'
        + '<img class="login_img" src="' + mk_icon(site) + '">'
@@ -198,15 +226,21 @@ function update_news_list(data){
            + "  onclick='div_show(\"news_popup\");' alt='Добавить новое сообщение'>\n"
            + "<br><br>\n";
 
- for (i=0; i<data.length; i++){
-    news_list += "<h3 class='news_title'>" + data[i].title + "</h3>\n"
+  for (i=0; i<data.length; i++){
+    news_list += "<hr><div align=left>"
+              + "<i>" + data[i].ctime_fmt + "</i>, "
+              + mk_face(data[i].cuser, data[i].cuser_name, data[i].cuser_site)
+              + ":</div>\n"
+              + "<h3 class='news_title'>"
+              + data[i].title + "</h3>\n"
               +  "<p class='news_body'>" + data[i].text + "</p>\n";
+    if (data[i].origin != undefined) {
+      news_list += "<div align=right class=source_div><a href='" + data[i].origin + "'>Источник</a></div>\n";
+    }
   }
 
   var ll = document.getElementsByClassName("news_list");
-  for (i=0; i<ll.length; i++){
-    ll[i].innerHTML = news_list;
-  }
+  for (i=0; i<ll.length; i++){ ll[i].innerHTML = news_list; }
 }
 
 /////////////////////////////////////////////////////////////////

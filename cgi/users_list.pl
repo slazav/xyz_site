@@ -1,12 +1,15 @@
 #!/usr/bin/perl
 
-# Get user information.
+# Get user list.
+#
 # Input  -- session
-# Output 
-#  -- user information in json (without fields sess, info)
-#  -- empty json if no session is provided
-#  -- json with ret:1 and error_message in case of an error
-# Log errors into $site_wwwdir/logs/login.txt.
+#  user level should be >=LEVEL_MODER
+#
+# Output -- all users from "users" database
+#   - fields "sess", "info" are removed
+#   - field "me"=1 added for the caller
+#   - if the caller can set user level then field "level_hints"
+#     is added with with possible level values
 
 ################################################
 
@@ -14,16 +17,15 @@ use strict;
 use warnings;
 use MongoDB;
 use Try::Tiny;
-use CGI ':standard';
+use CGI         ':standard';
 use JSON;
-use site;
+use site; # $secret $widget_id %test_users $myhost
 use common;
 
 ################################################
 
 try {
-  my $ret = get_my_info() || {};
-
+  my $ret = user_list();
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->pretty()->encode($ret), "\n";
 }

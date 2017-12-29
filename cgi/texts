@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+
+## HTML output for texts page
+
+################################################
+
+use strict;
+use warnings;
+use Try::Tiny;
+use common;
+use html;
+
+try {
+  my $db = open_db;
+  my $u  = get_my_info($db);
+
+  print_head($u);
+  print "<iframe height=99% width=100% frameborder=0 ",
+        "src='http://slazav.mccme.ru/lib.htm'></iframe>\n";
+  print_tail();
+}
+catch {
+  print_error($_, 'html');
+}

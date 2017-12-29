@@ -9,27 +9,28 @@ use CGI ':standard';
 use JSON;
 use site;
 use common;
-use objects;
 use safe_html;
 
 
 ################################################
 
 try {
+  my $obj;
+  $obj->{title} = cleanup_txt(param('title')||'');
+  $obj->{text}  = cleanup_htm(param('text')||'');
+  $obj->{type}  = cleanup_txt(param('type')||'');
 
-  my $sess = get_session();
-  my $text;
-  $text->{title} = cleanup_txt(param('title')||'', 1000);
-  $text->{text}  = cleanup_htm(param('text')||'', 10000);
-  $text->{type}  = cleanup_txt(param('type')||'',   100);
+  my $db = open_db;
+  my $u  = get_my_info($db);
 
-  write_object $sess, 'news', $text;
+  write_object undef, 'news', $obj;
 
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->encode({"ret" => 0}), "\n";
 }
 catch {
   chomp;
+  write_log($obj_log, "$0 error: $_");
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->encode({"ret" => 1, "error_message" => $_}), "\n";
 }

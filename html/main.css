@@ -1,6 +1,5 @@
 /**********************************************/
 body {
-  overflow:hidden;
   background-color: #949fd4;
 }
 
@@ -128,6 +127,7 @@ img.login_img{
   color:#005496;
   text-decoration:none;
   font-weight:bold;
+  margin: 3px,3px,3px;
 }
 
 
@@ -235,7 +235,6 @@ form.popup {
 }
 
 .popup > .submit_button {
-  font-family: arial,sans-serif;
   font-size:16px;
   text-decoration:none;
   text-align:center;
@@ -260,8 +259,29 @@ form.popup {
 /**********************************************/
 /* news */
 
-.news_title {
-  width: 100%;
-  background-color: #c3c3d4;
-  padding: 2px;
+.obj_top_panel {
+  font-size: x-large;
+  font-weight: bold;
+  margin: 0px 5px 10px;
+}
+.obj_top_panel > a {
+  text-decoration:none;
+}
+
+.obj_bottom_panel{
+  text-align: right;
+  margin-bottom: 2px;
+}
+.obj_bottom_panel > a {
+  text-decoration:none;
+}
+
+.navigation > a {
+  color: #006496;
+  text-decoration:none;
+}
+.navigation {
+  color: #006496;
+  font-weight: bold;
+  margin: 10px;
 }

@@ -9,19 +9,18 @@ use CGI ':standard';
 use JSON;
 use site;
 use common;
-use objects;
 
 
 ################################################
 
 try {
-  my $o = show_object('news', param('id') || '');
-
+  my $o = show_object(undef, 'news', param('id') || '');
   print header (-type=>'application/json', -charset=>'utf-8');
-  print JSON->new->canonical()->encode($o), "\n";
+  print JSON->new->canonical()->pretty()->encode($o), "\n";
 }
 catch {
   chomp;
+  write_log($obj_log, "$0 error: $_");
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->encode({"ret" => 1, "error_message" => $_}), "\n";
 }

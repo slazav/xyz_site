@@ -19,7 +19,7 @@ define(MAIN_BEGIN,`<html>
   <script type="text/JavaScript" src="site.js"></script>
   <script type="text/JavaScript" src="main.js"></script>
 </head>
-<body onload="on_load()" class="ltblue">
+<body>
 ')
 
 define(MAIN_END,`</body>
@@ -37,12 +37,12 @@ define(MAIN_PANEL_BEGIN,`
     <!--Top menu, login/logout buttons -->
     <tr height=1%><td>
     <table><tr>
-      <td>MENU_BUTTON(main.htm,  `Новости')</td>
-      <td>MENU_BUTTON(pcat.htm,  `Походы')</td>
-      <td>MENU_BUTTON(texts.htm, `Тексты')</td>
+      <td>MENU_BUTTON(news,      `Новости')</td>
+      <td>MENU_BUTTON(pcat,      `Походы')</td>
+      <td>MENU_BUTTON(texts,     `Тексты')</td>
       <td>MENU_BUTTON(map.htm,   `Карта')</td>
-      <td>MENU_BUTTON(help.htm,  `Справка')</td>
-      <td>MENU_BUTTON_M(users.htm, `Люди')</td>
+      <td>MENU_BUTTON(help,      `Справка')</td>
+      <td>MENU_BUTTON_M(users,   `Люди')</td>
       <td width = 100% align=right class="login_panel"> </td>
     </tr></table>
     </td></tr>

@@ -15,23 +15,19 @@ use JSON;
 use site;
 use common;
 
-my $logf = "$site_wwwdir/logs/login.txt";
-
 ################################################
 
 try {
+  # open user database
+  my $db = open_db;
   my $sess = get_session();
 
-  # open user database
-  my $client = MongoDB->connect();
-  my $db = $client->get_database( $database );
   my $users = $db->get_collection( 'users' );
-
   my $u = $users->find_one_and_update({'sess'=>$sess},
      {'$set' => {'sess' => ''} });
   die "Can't find and update user in the database" unless $u;
 
-  write_log($logf, "Logout OK: $u->{name} @ $u->{site} ($u->{_id})");
+  write_log($usr_log, "Logout OK: $u->{name} @ $u->{site} ($u->{_id})");
 
   #unset cookie
   my $cookie = cookie(-name=>'SESSION', -value=>'', -expires=>'-1s', -host=>$site_url);
@@ -40,7 +36,7 @@ try {
 }
 catch {
   chomp;
-  write_log($logf, "Logout error: $_");
+  write_log($usr_log, "$0 error: $_");
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->encode({"ret" => 1, "error_message" => $_}), "\n";
 }

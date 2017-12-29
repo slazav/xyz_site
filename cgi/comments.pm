@@ -1,12 +1,12 @@
-package objects;
+package comments;
 
-# Object operations
+# Comment operations
 
 BEGIN {
   require Exporter;
   our $VERSION = 1.00;
   our @ISA = qw(Exporter);
-  our @EXPORT = qw(write_object delete_object show_object list_objects);
+  our @EXPORT = qw(write_comment delete_comment show_comment);
 }
 
 
@@ -18,14 +18,14 @@ use MongoDB;
 use site;
 use common;
 
-my $logf = "$site_wwwdir/logs/objects.txt";
+my $logf = "$site_wwwdir/logs/comments.txt";
 
 ################################################
 
-sub write_object{
+sub write_comment{
   my $sess = shift; # user session
-  my $coll = shift; # object collection
-  my $obj  = shift; # object to write (including _id)
+  my $coll = shift; # comment collection
+  my $obj  = shift; # comment to write (including _id, ref_coll, ref_id)
 
   die "session is empty" unless ($sess);
 
@@ -44,36 +44,36 @@ sub write_object{
   $obj->{mtime} = time;
   delete $obj->{del};
 
-  # open object collection, get old object information (if it exists)
-  my $objects = $db->get_collection( $coll );
+  # open comment collection, get old comment information (if it exists)
+  my $comments = $db->get_collection( $coll );
 
   if ( $obj_id ){
-    # modification of existing object is needed
+    # modification of existing comment is needed
 
-    # check if object exists
-    my $o = $objects->find_one({'_id'=>$obj_id});
-    die "can't find object: $obj_id" unless $o;
+    # check if comment exists
+    my $o = $comments->find_one({'_id'=>$obj_id});
+    die "can't find comment: $obj_id" unless $o;
 
     # check user permissions
-    die "you can not modify objects, created by another users"
+    die "you can not modify comments, created by another users"
       if ($o->{cuser} ne $user_id && $level<$LEVEL_MODER);
 
     # open archive collection, save old information there:
     my $archive = $db->get_collection( "$coll.arc" );
     $o->{_id}   = next_id($db, "$coll.arc");
     my $res = $archive->insert_one($o);
-    die "can't put an object into archive"
+    die "can't put an comment into archive"
       unless $res->acknowledged;
 
     write_log($logf, "ARC < " . JSON->new->canonical()->encode($o) );
 
-    # transfer some fields from old object to the new one:
+    # transfer some fields from old comment to the new one:
     $obj->{ctime} = $o->{ctime};
     $obj->{cuser} = $o->{cuser};
     $obj->{prev}  = $res->inserted_id;
 
-    $res = $objects->replace_one({'_id' => $obj_id}, $obj);
-    die "Can't write an object"
+    $res = $comments->replace_one({'_id' => $obj_id}, $obj);
+    die "Can't write an comment"
       unless $res->acknowledged;
 
     write_log($logf, "MOD $coll: " . JSON->new->canonical()->encode($obj) );
@@ -84,9 +84,9 @@ sub write_object{
     $obj->{cuser} = $obj->{muser};
     delete $obj->{prev};
 
-    # create new object
-    my $res = $objects->insert_one($obj);
-    die "Can't put object into the database"
+    # create new comment
+    my $res = $comments->insert_one($obj);
+    die "Can't put comment into the database"
       unless $res->acknowledged;
 
     write_log($logf, "NEW $coll: " . JSON->new->canonical()->encode($obj) );
@@ -94,10 +94,10 @@ sub write_object{
 
 }
 
-sub delete_object{
+sub delete_comment{
   my $sess = shift; # user session
-  my $coll = shift; # object collection
-  my $id   = shift; # object to delete (_id)
+  my $coll = shift; # comment collection
+  my $id   = shift; # comment to delete (_id)
   my $del  = shift; # delete/undelete (1 or 0)
 
   die "session is empty" unless ($sess);
@@ -111,8 +111,8 @@ sub delete_object{
   my $u = $users->find_one({'sess'=>$sess}, { 'sess' => 0, 'info' => 0 });
   die "Can't find user in the database" unless $u;
 
-  # open object collection, get old object information
-  my $objects = $db->get_collection( $coll );
+  # open comment collection, get old comment information
+  my $comments = $db->get_collection( $coll );
 
   my $upd = {'$set' => {
     'dtime' => time,
@@ -121,49 +121,30 @@ sub delete_object{
 
   my $o;
   if ($u->{level} < $LEVEL_MODER){
-    $u = $objects->find_one_and_update(
+    $u = $comments->find_one_and_update(
                {'_id' => $id, 'cuser' => $u->{_id}}, $upd);
   } else {
-    $u = $objects->find_one_and_update({'_id' => $id}, $upd);
+    $u = $comments->find_one_and_update({'_id' => $id}, $upd);
   }
 
   write_log($logf, "DEL $coll: " . JSON->new->canonical()->encode($o) );
 
 }
 
-sub show_object{
-  my $coll = shift; # object collection
-  my $id   = shift; # object id
+sub show_comment{
+  my $coll = shift; # comment collection
+  my $id   = shift; # comment id
 
   die "id is empty" unless ($id);
 
-  # open object collection, get object information
+  # open comment collection, get comment information
   my $client = MongoDB->connect();
   my $db = $client->get_database( $database );
-  my $objects = $db->get_collection( $coll );
+  my $comments = $db->get_collection( $coll );
 
-  my $o = $objects->find_one({'_id'=>$id});
-  die "can't find object in the database" unless $o;
+  my $o = $comments->find_one({'_id'=>$id});
+  die "can't find comment in the database" unless $o;
   return $o;
-}
-
-sub list_objects{
-  my $coll = shift; # object collection
-  my $skip   = shift || 0;
-  my $limit  = shift || 25;
-
-  # open object collection, get object information
-  my $client = MongoDB->connect();
-  my $db = $client->get_database( $database );
-  my $objects = $db->get_collection( $coll );
-
-  my $query_result = $objects->find({}, {'limit'=>$limit, 'skip'=>$skip})->result;
-
-  my $res=[];
-  while ( my $next = $query_result->next ) {
-    push @{$res}, $next;
-  }
-  return $res;
 }
 
 1;

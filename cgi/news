@@ -20,10 +20,11 @@ use html;
 try {
   ####################
   # get parameters:
-  my $id   = cleanup_int(param('id')||'');
-  my $num  = cleanup_int(param('num')||25);
-  my $skip = cleanup_int(param('skip')||0);
-  my $titles = defined param('titles');
+  my $pars;
+  $pars->{id}   = cleanup_int(param('id')||'');
+  $pars->{num}  = cleanup_int(param('num')||20);
+  $pars->{skip} = cleanup_int(param('skip')||0);
+  $pars->{titles} = defined param('titles');
 
   ####################
   # open DB, get all information:
@@ -31,18 +32,19 @@ try {
   my $u  = get_my_info($db);
   my $objects;
   my $o;
-  if ($id) {  $o = show_object($db, 'news', $id); }
-  else { $objects = list_objects($db, 'news', $skip, $num); }
+  if ($pars->{id}) {  $o = show_object($db, 'news', $pars); }
+  else { $objects = list_objects($db, 'news', $pars); }
 
   ####################
   # Print everything:
   print_head($u);
 
   # print one
-  if ($id) {
+  if ($pars->{id}) {
     my $cu = mk_face($o->{cuser_info});
     my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
-    print "<div class='obj_top_panel'>$cu: <a href='news?id=$o->{_id}'>$o->{title}</a></div>\n";
+
+    print "<div class='obj_top_panel'>$cu: $o->{title}</div>\n";
     print "<p class='news_body'>$o->{text}</p>\n";
     my $src = exists $o->{origin}? " <a href='$o->{origin}'>(источник)</a>":"";
     print "<div class='obj_bottom_panel'><i>$ct</i>$src</div>\n";
@@ -51,10 +53,10 @@ try {
   else {
 
     # navigation panel
-    my $n1 = $skip+1;
-    my $n2 = $skip+1+$num;
-    my $np = ($n1-$num-1 < 0)? 0:$n1-$num-1;
-    my $nn = $n1+$num-1;
+    my $n1 = $pars->{skip}+1;
+    my $n2 = $pars->{skip}+1 + $pars->{num};
+    my $np = ($n1 - $pars->{num} - 1 < 0)? 0 : $n1 - $pars->{num} - 1;
+    my $nn = $n1 + $pars->{num} - 1;
     print "<div class=navigation>\n",
       "<a href='news?skip=$np'>&lt&lt</a> $n1..$n2 <a href='news?skip=$nn'>&gt&gt</a>\n",
       "<a href='javascript:div_show(\"news_popup\");'>[новое сообщение]</a>\n",
@@ -63,14 +65,19 @@ try {
     foreach my $o (@{$objects}) {
       my $cu = mk_face($o->{cuser_info});
       my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
-      if ($titles){
-        print "<div class='title_panel'>$cu: <a href='news?id=$o->{_id}'>$o->{title}</a> <i>($o->{ctime_fmt})</i></div>\n";
+      $ct = "<i>$ct</i>";
+      my $title = "<a href='news?id=$o->{_id}'>$o->{title}</a>";
+      if ($pars->{titles}){
+        print "<div class='title_panel'>$ct $cu: $title</div>\n";
       }
       else {
-        print "<hr><div class='obj_top_panel'>$cu: <a href='news?id=$o->{_id}'>$o->{title}</a></div>\n";
+        my $src = exists $o->{origin}? "<a href='$o->{origin}'>(источник)</a>":"";
+        $o->{ncomm} = $o->{ncomm} || 0;
+        my $com = "<a href='news?id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
+
+        print "<hr><div class='obj_top_panel'>$cu: $title</div>\n";
         print "<p class='news_body'>$o->{text}</p>\n";
-        my $src = exists $o->{origin}? " <a href='$o->{origin}'>(источник)</a>":"";
-        print "<div class='obj_bottom_panel'><i>$ct</i>$src</div>\n";
+        print "<div class='obj_bottom_panel'>$ct, $com $src</div>\n";
       }
     }
   }

@@ -313,12 +313,17 @@ sub object_expand {
   my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
   $o->{cuser_info} = $users->find_one({'_id'=>$o->{cuser}}, $pr);
 
-  if ($o->{muser} != $o->{cuser}){
-    $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr);
+  if ($o->{muser}) {
+    if ($o->{muser} == $o->{cuser}){ $o->{muser_info} = $o->{cuser_info}; }
+    else { $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr); }
   }
-  else {
-    $o->{muser_info} = $o->{cuser_info};
+
+  if ($o->{duser}) {
+    if    ($o->{duser} == $o->{cuser}){ $o->{duser_info} = $o->{cuser_info}; }
+    elsif ($o->{duser} == $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
+    else { $o->{duser_info} = $users->find_one({'_id'=>$o->{duser}}, $pr); }
   }
+
   my $level = $me->{level} || $LEVEL_ANON;
   my $my_id = $me->{_id} || "";
   $o->{can_edit}   = 1 if check_perm($coll, 'edit', $level, $o->{cuser} eq $my_id);
@@ -327,17 +332,19 @@ sub object_expand {
 }
 
 ############################################################
+# Show a single object.
+# ARC/DEL objects are shown
 sub show_object{
   my $db   = shift || open_db(); # database
   my $coll = shift; # object collection
-  my $id   = shift; # object id
+  my $pars  = shift; # (id, prev, next)
 
-  die "id is empty" unless ($id);
+  die "id is empty" unless ($pars->{id});
   my $me = get_my_info($db);
 
   # open object collection, get object information
   my $objects = $db->get_collection( $coll );
-  my $ret = $objects->find_one({'_id' => $id + 0});
+  my $ret = $objects->find_one({'_id' => $pars->{id} + 0});
 
   object_expand($db, $coll, $me, $ret);
 
@@ -346,18 +353,23 @@ sub show_object{
 }
 
 ############################################################
+# List objects.
+# ARC/DEL objects are skipped
 sub list_objects{
   my $db   = shift || open_db(); # database
   my $coll = shift; # object collection
-  my $skip   = shift || 0;
-  my $limit  = shift || 25;
+  my $pars = shift;
 
   my $me = get_my_info($db);
 
   # open object collection, get object information
   my $objects = $db->get_collection( $coll );
-  my $query_result = $objects->find({},
-    {'limit'=>$limit, 'skip'=>$skip, 'sort'=>{'_id', -1}})->result;
+  my $query_result = $objects->find({
+      'del' => { '$exists' => 0 },
+      'arc' => { '$exists' => 0 }
+    }, {
+      'limit'=>$pars->{num}||25, 'skip'=>$pars->{skip}||0, 'sort'=>{'_id', -1}
+    })->result;
 
   my $ret=[];
   while ( my $next = $query_result->next ) {

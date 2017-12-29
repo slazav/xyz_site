@@ -14,7 +14,8 @@ use common;
 ################################################
 
 try {
-  my $o = show_object(undef, 'news', param('id') || '');
+  my $pars = { id=>param('id') || '' };
+  my $o = show_object(undef, 'news', $pars);
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->pretty()->encode($o), "\n";
 }

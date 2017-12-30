@@ -10,15 +10,17 @@ use JSON;
 use site;
 use common;
 use safe_html;
-
+use open ':std', ':encoding(UTF-8)';
+use Encode;
 
 ################################################
 
 try {
   my $obj;
-  $obj->{title} = cleanup_txt(param('title')||'');
-  $obj->{text}  = cleanup_htm(param('text')||'');
-  $obj->{type}  = cleanup_txt(param('type')||'');
+  $obj->{_id}   = param('id')||'';
+  $obj->{title} = decode utf8=>(param('title')||'');
+  $obj->{text}  = decode utf8=>(param('text')||'');
+  $obj->{type}  = decode utf8=>(param('type')||'');
 
   my $db = open_db;
   my $u  = get_my_info($db);

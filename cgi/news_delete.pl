@@ -9,6 +9,7 @@ use CGI ':standard';
 use JSON;
 use site;
 use common;
+use open ':std', ':encoding(UTF-8)';
 
 
 ################################################

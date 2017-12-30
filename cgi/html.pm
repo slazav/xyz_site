@@ -1,6 +1,8 @@
 package html;
 use site;
 use CGI ':standard';
+use safe_html;
+use utf8;
 
 BEGIN {
   require Exporter;
@@ -81,7 +83,7 @@ sub print_head {
   # build login panel
   my $login_panel='';
   if (exists $u->{_id}) {
-    $login_panel = mk_face($u) . ' <a class="login_btn" href="javascript:do_request(\'logout\', {}, location.reload())">выйти</a>';
+    $login_panel = mk_face($u) . ' <a class="login_btn" href="javascript:on_logout();">выйти</a>';
   }
   else {
     $login_panel = 'Войти: '
@@ -137,6 +139,8 @@ sub print_error {
     print JSON->new->canonical()->encode({"ret" => 1, "error_message" => $_}), "\n";
     return;
   }
+
+  $msg = cleanup_txt($msg);
 
   print header (-type=>'text/html', -charset=>'utf-8');
   print qq*

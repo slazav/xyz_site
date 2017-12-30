@@ -14,15 +14,17 @@ use site;
 use common;
 use safe_html;
 use html;
+use utf8;
+use open ':std', ':encoding(UTF-8)';
 
 ################################################
 
 try {
   ####################
   # get parameters:
-  my $id   = cleanup_int(param('id')||'');
-  my $num  = cleanup_int(param('num')||25);
-  my $skip = cleanup_int(param('skip')||0);
+  my $id   = param('id') || '';
+  my $num  = param('num') || 25;
+  my $skip = param('skip') || 0;
 
   ####################
   # open DB, get all information:

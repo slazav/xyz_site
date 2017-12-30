@@ -33,7 +33,7 @@ use HTML::Parser;
 ## get plain text parameter: convert <>& to &lt;, &gt;, &amp;
 ## cut too long input
 sub cleanup_txt {
-  my $inp    = shift;
+  my $inp    = shift || '';
   my $maxlen = shift || 1000;
   $inp = substr($inp, 0, $maxlen) if length($inp)>$maxlen;
   $inp =~ s/&/&amp;/g;

@@ -2,6 +2,7 @@ package common;
 use site;
 use CGI ":standard";
 use MongoDB;
+use utf8;
 
 BEGIN {
   require Exporter;
@@ -172,26 +173,30 @@ sub user_list {
 # check permissions
 sub check_perm {
   my $coll = shift;
-  my $action = shift; # create, edit, delete
-  my $mylevel   = shift;
-  my $myobject  = shift || 0;
-  my $mycomment = shift || 0;
+  my $action = shift; # create, edit, delete, undel
+  my $user   = shift;
+  my $object = shift;
 
+  my $owner = $object->{cuser} eq $user->{id};
+  my $mylvl = $user->{level};
   if ($coll eq 'news') {
-    return 1 if $action eq 'create' && ($mylevel >= $LEVEL_NORM);
-    return 1 if $action eq 'edit'   && ($myobject || $mylevel >= $LEVEL_ADMIN);
-    return 1 if $action eq 'delete' && ($myobject || $mylevel >= $LEVEL_MODER);
+    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
+    return 1 if $action eq 'edit'   && ($owner || $mylvl >= $LEVEL_ADMIN) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'delete' && ($owner || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'undel'  && ($owner || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'pcat' || $coll eq 'geo') {
-    return 1 if $action eq 'create' && ($mylevel >= $LEVEL_NORM);
-    return 1 if $action eq 'edit'   && ($myobject || $mylevel >= $LEVEL_NORM);
-    return 1 if $action eq 'delete' && ($myobject || $mylevel >= $LEVEL_MODER);
+    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
+    return 1 if $action eq 'edit'   && ($owner || $mylvl >= $LEVEL_NORM)  && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'delete' && ($owner || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'undel'  && ($owner || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'comm') {
-    return 1 if $action eq 'create' && ($mylevel >= $LEVEL_NORM);
+    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
     return 1 if $action eq 'edit'   && ($mycomment);
-    return 1 if $action eq 'delete' && ($mycomment || $myobject || $mylevel >= $LEVEL_MODER);
+    return 1 if $action eq 'delete' && ($mycomment || $owner || $mylvl >= $LEVEL_MODER);
   }
+  return 0;
 }
 
 ############################################################
@@ -202,12 +207,10 @@ sub write_object{
 
   my $u = get_my_info($db);
   die "Unknown user" unless $u;
-  my $user_id = $u->{_id};
-  my $level   = $u->{level};
 
-  my $obj_id  = $obj->{_id};
+  my $id  = $obj->{_id} + 0;
   # set muser/mtime fields
-  $obj->{muser} = $user_id;
+  $obj->{muser} = $u->{_id};
   $obj->{mtime} = time;
   # user can't set these fields directly:
   delete $obj->{del};
@@ -217,16 +220,16 @@ sub write_object{
   # open object collection, get old object information (if change of existing id is needed)
   my $objects = $db->get_collection( $coll );
 
-  if ( $obj_id ){
+  if ( $id ){
     # modification of existing object is needed
 
     # check if object exists
-    my $o = $objects->find_one({'_id'=>$obj_id});
-    die "can't find object: $obj_id" unless $o;
+    my $o = $objects->find_one({'_id'=>$id});
+    die "can't find object: $id" unless $o;
 
     # check user permissions
     die "permission denied"
-      if check_perm($coll, 'edit', $level, $o->{cuser} eq $user_id);
+      unless check_perm($coll, 'edit', $u, $o);
 
     # save old information:
     $o->{_id}   = next_id($db, "$coll");
@@ -242,7 +245,7 @@ sub write_object{
     $obj->{cuser} = $o->{cuser};
     $obj->{prev}  = $res->inserted_id;
 
-    $res = $objects->replace_one({'_id' => $obj_id}, $obj);
+    $res = $objects->replace_one({'_id' => $id}, $obj);
     die "Can't write an object"
       unless $res->acknowledged;
 
@@ -254,7 +257,8 @@ sub write_object{
     $obj->{cuser} = $obj->{muser};
 
     # check user permissions
-    die "permission denied" if check_perm($coll, 'create', $level);
+    die "permission denied"
+      unless check_perm($coll, 'create', $u, {});
 
     # create new object
     my $res = $objects->insert_one($obj);
@@ -276,22 +280,22 @@ sub delete_object{
   my $u = get_my_info($db);
   die "Unknown user" unless $u;
   die "id is empty" unless ($id);
+  $id+=0; # convert to int!
   die "del parameter should be 0 or 1" unless ($del==1 || $del==0);
 
   # open object collection, get old object information
   my $objects = $db->get_collection( $coll );
 
-  my $obj = $objects->find_one({'_id'=>$obj_id});
-  die "can't find object: $obj_id" unless $obj;
+  my $obj = $objects->find_one({'_id'=>$id});
+  die "can't find object: $id" unless $obj;
 
   # check user permissions
   die "permission denied"
-    if check_perm($coll, 'delete', $level, $obj->{cuser} eq $u->{_id});
+    unless check_perm($coll, $del?'delete':'undel', $u, $obj);
 
-  my $upd = {'$set' => {
-    'dtime' => time,
-    'duser' => $u->{_id},
-    'del'   => $del }};
+  my $upd = {'$set' => {'dtime' => time, 'duser' => $u->{_id}}};
+  if ($del) {$upd->{'$set'}->{del} = 1;}
+  else {$upd->{'$unset'}->{del} = 1;}
 
   $u = $objects->find_one_and_update({'_id' => $id}, $upd);
   die "Can't write an object" unless $u;
@@ -323,11 +327,9 @@ sub object_expand {
     elsif ($o->{duser} == $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
     else { $o->{duser_info} = $users->find_one({'_id'=>$o->{duser}}, $pr); }
   }
-
-  my $level = $me->{level} || $LEVEL_ANON;
-  my $my_id = $me->{_id} || "";
-  $o->{can_edit}   = 1 if check_perm($coll, 'edit', $level, $o->{cuser} eq $my_id);
-  $o->{can_delete} = 1 if check_perm($coll, 'delete', $level, $o->{cuser} eq $my_id);
+  $o->{can_edit}   = 1 if check_perm($coll, 'edit',   $me, $o);
+  $o->{can_delete} = 1 if check_perm($coll, 'delete', $me, $o);
+  $o->{can_undel}  = 1 if check_perm($coll, 'undel',  $me, $o);
 
 }
 

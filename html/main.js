@@ -30,19 +30,19 @@ function do_request(action, args, callback){
         var data = {error_type: "xhttp",
                     error_message: xhttp.responseText};
       }
-      if (data.error_type){ process_err(data); }
+      if (data.error_message){ process_err(data); }
       else { callback(data);}
     }
   };
   xhttp.open("GET", 'cgi/' + action + '.pl'
-                  + '?t=' + Math.random() + args, true);
+                  + '?t=' + Math.random() + "&" + args, true);
   xhttp.send();
 }
 
 /////////////////////////////////////////////////////////////////
 // process error
 function process_err(data){
-  alert(data.error_type + ": " + data.error_message);
+  alert(data.error_type + " error: " + data.error_message);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -68,27 +68,6 @@ function on_load(){
   // we always want to check user information and fill the login form
   document.cookie = "RETPAGE=" + document.URL;
   do_request('my_info', {}, update_my_info);
-
-  // if there is a user_list widget, do user_list request
-  var ll = document.getElementsByClassName("user_list");
-  if (ll.length) { do_request('user_list', {}, update_user_list); }
-
-  // if there is a news_list widget, do news_list request
-  var ll = document.getElementsByClassName("news_list");
-  if (ll.length) {
-    var p = get_params();
-    var args = {};
-    if (p.id != undefined){
-      args.id = p.id;
-      do_request('news_show', args, update_news_list);
-    }
-    else {
-      args.skip = p.skip;
-      args.num = p.num;
-      do_request('news_list', args, update_news_list);
-    }
-  }
-
 }
 
 document.addEventListener("DOMContentLoaded", on_load);
@@ -184,94 +163,44 @@ function update_my_info(data){
 }
 
 /////////////////////////////////////////////////////////////////
-// Update user list
-// 
-function update_user_list(data){
+// for use with do_request; ignore data and reload page
+function do_reload(data){ location.reload(); }
 
-  var userlist = "<table cellpadding=5><tr>"
-               + "<th>Пользователь</th>"
-               + "<th>Уровень доступа</th>"
-               + "<th>Первый вход</th>"
-               + "<th>Последний вход</th></tr>";
-  for (i=0; i<data.length; i++){
-    face = "<td>" + mk_face(data[i]._id, data[i].name, data[i].site) + "</td>";
-    var lev = "<td>" + mk_rlevel(data[i].level) + "</td>";
-    var fl  = "<td>" + tstamp2date(data[i].ctime) + "</td>";
-    var ll  = "<td>" + tstamp2date(data[i].mtime) + "</td>";
-    var me  = data[i].me ? "<td><b>-- это вы!</b></td>":"";
-
-    if (data[i].level_hints) {
-      lev="<td><select oninput=\"on_set_level(\'"+data[i]._id+"\',this.value)\">";
-      for (var j=0; j<data[i].level_hints.length; j++){
-        var l = data[i].level_hints[j];
-        var s = (l==data[i].level)? " selected":"";
-        lev += "<option value='" + l + "'" + s + ">"+ mk_rlevel(l) +"</option>";
-      }
-      lev+="</select></td>";
-    }
-
-    userlist += "<tr>" + face + lev + fl + ll + me +"</tr>";
-  }
-  userlist += "</table>";
-
-  var ll = document.getElementsByClassName("user_list");
-  for (i=0; i<ll.length; i++){
-    ll[i].innerHTML = userlist;
-  }
+function on_logout(){
+  do_request('logout', {}, do_reload);
 }
-/////////////////////////////////////////////////////////////////
-function update_news_list(data){
-
-  var news_list="<img src='img/edit.png' class='pointer' align='right'\n"
-           + "  onclick='div_show(\"news_popup\");' alt='Добавить новое сообщение'>\n"
-           + "<br><br>\n";
-
-  for (i=0; i<data.length; i++){
-    news_list += "<hr><div align=left>"
-              + "<i>" + data[i].ctime_fmt + "</i>, "
-              + mk_face(data[i].cuser, data[i].cuser_name, data[i].cuser_site)
-              + ":</div>\n"
-              + "<h3 class='news_title'>"
-              + data[i].title + "</h3>\n"
-              +  "<p class='news_body'>" + data[i].text + "</p>\n";
-    if (data[i].origin != undefined) {
-      news_list += "<div align=right class=source_div><a href='" + data[i].origin + "'>Источник</a></div>\n";
-    }
-  }
-
-  var ll = document.getElementsByClassName("news_list");
-  for (i=0; i<ll.length; i++){ ll[i].innerHTML = news_list; }
-}
-
-/////////////////////////////////////////////////////////////////
-// on_set_level
 function on_set_level(id,level){
-  var action = function(data){ do_request('user_list', {}, update_user_list); }
-  do_request('set_level', {id: id, level: level}, action);
+  do_request('set_level', {id: id, level: level}, do_reload);
 }
+function on_news_write(){
+  var f = document.getElementById("news_form");
+  args = {};
+  args.id    = f.id.value;
+  args.title = f.title.value;
+  args.text  = f.text.value;
+  args.type  = f.type.value;
+  do_request('news_write', args, after_news_write);
+}
+function after_news_write(data) {
+  hide('news_popup');
+  document.getElementById("news_form").reset();
+  location.reload();
+}
+
+
+function on_news_delete(id){
+  do_request('news_delete', {id: id, del: 1}, do_reload);
+  hide("news_del_popup");
+}
+function on_news_undel(id){
+  do_request('news_delete', {id: id, del: 0}, do_reload);
+}
+
 
 /////////////////////////////////////////////////////////////////
 // working with news
 
-function div_show(id) { document.getElementById(id).style.display = "block"; }
-function div_hide(id) { document.getElementById(id).style.display = "none"; }
+function show(id) { document.getElementById(id).style.display = "block"; }
+function hide(id) { document.getElementById(id).style.display = "none"; }
 
-function on_news_write(id, title, text, type) {
-  f=document.getElementById("news_form");
-  args = {};
-  args.id    = f.elements[0].value;
-  args.title = f.elements[1].value;
-  args.text  = f.elements[2].value;
-  args.type  = f.elements[3].value;
-  do_request('news_write', args, after_news_write);
-}
-function after_news_write(data) {
-  div_hide('news_popup');
-  f=document.getElementById("news_form").reset();
-  update_news_list(data);
-}
-
-function on_news_delete(id) {
-  do_request('news_delete', {id: id, del: 1}, "");
-}
 

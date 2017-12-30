@@ -14,6 +14,8 @@ use site;
 use common;
 use safe_html;
 use html;
+use utf8;
+use open ':std', ':encoding(UTF-8)';
 
 ################################################
 
@@ -21,9 +23,9 @@ try {
   ####################
   # get parameters:
   my $pars;
-  $pars->{id}   = cleanup_int(param('id')||'');
-  $pars->{num}  = cleanup_int(param('num')||20);
-  $pars->{skip} = cleanup_int(param('skip')||0);
+  $pars->{id}   = param('id') || '';
+  $pars->{num}  = param('num') || 20;
+  $pars->{skip} = param('skip') || 0;
   $pars->{titles} = defined param('titles');
 
   ####################
@@ -32,7 +34,7 @@ try {
   my $u  = get_my_info($db);
   my $objects;
   my $o;
-  if ($pars->{id}) {  $o = show_object($db, 'news', $pars); }
+  if ($pars->{id}) { $o = show_object($db, 'news', $pars); }
   else { $objects = list_objects($db, 'news', $pars); }
 
   ####################
@@ -43,11 +45,23 @@ try {
   if ($pars->{id}) {
     my $cu = mk_face($o->{cuser_info});
     my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
+    my $title = cleanup_txt($o->{title});
+    my $text  = cleanup_htm($o->{text});
+    my $type  = cleanup_txt($o->{type});
 
-    print "<div class='obj_top_panel'>$cu: $o->{title}</div>\n";
-    print "<p class='news_body'>$o->{text}</p>\n";
-    my $src = exists $o->{origin}? " <a href='$o->{origin}'>(источник)</a>":"";
-    print "<div class='obj_bottom_panel'><i>$ct</i>$src</div>\n";
+    my $btm_panel = '';
+    $btm_panel .= " Сообщение удалено"  if $o->{del};
+    $btm_panel .= " Архивное сообщение" if $o->{arc};
+    $btm_panel .= " <a href='news?id=$o->{prev}'>Старая версия</a>" if $o->{prev};
+    $btm_panel .= " <a href='javascript:show(\"news_del_popup\")'>[удалить]</a>" if $o->{can_delete};
+    $btm_panel .= " <a href='javascript:on_news_undel($o->{_id})'>[восстановить]</a>" if $o->{can_undel};
+    $btm_panel .= " <a href='javascript:show(\"news_popup\")'>[редактировать]</a>" if $o->{can_edit};
+    $btm_panel .= " <i>$ct</i>";
+    $btm_panel .= " <i><a href='$o->{origin}'>(источник)</a></i>" if exists $o->{origin};
+
+    print "<div class='obj_top_panel'>$cu: $title</div>\n";
+    print "<p class='news_body'>$text</p>\n";
+    print "<div class='obj_bottom_panel'>$btm_panel</div>\n";
   }
   # print many
   else {
@@ -59,14 +73,18 @@ try {
     my $nn = $n1 + $pars->{num} - 1;
     print "<div class=navigation>\n",
       "<a href='news?skip=$np'>&lt&lt</a> $n1..$n2 <a href='news?skip=$nn'>&gt&gt</a>\n",
-      "<a href='javascript:div_show(\"news_popup\");'>[новое сообщение]</a>\n",
+      "<a href='javascript:show(\"news_popup\")'>[новое сообщение]</a>\n",
       "</div>\n";
 
     foreach my $o (@{$objects}) {
       my $cu = mk_face($o->{cuser_info});
       my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
       $ct = "<i>$ct</i>";
-      my $title = "<a href='news?id=$o->{_id}'>$o->{title}</a>";
+      my $title = cleanup_txt($o->{title});
+      my $text  = cleanup_htm($o->{text});
+      my $type  = cleanup_txt($o->{type});
+      $title = "<a href='news?id=$o->{_id}'>$title</a>";
+
       if ($pars->{titles}){
         print "<div class='title_panel'>$ct $cu: $title</div>\n";
       }
@@ -76,24 +94,28 @@ try {
         my $com = "<a href='news?id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
 
         print "<hr><div class='obj_top_panel'>$cu: $title</div>\n";
-        print "<p class='news_body'>$o->{text}</p>\n";
+        print "<p class='news_body'>$text</p>\n";
         print "<div class='obj_bottom_panel'>$ct, $com $src</div>\n";
       }
     }
   }
 
+  my $id    = $o->{_id}    || '';
+  my $title = $o->{title} || '';
+  my $text  = $o->{text}  || '';
+  my $type  = $o->{type}  || '';
   print qq*
   <!-- Всплывающий диалог нового сообщения -->
   <div style="display:none;" id="news_popup" class="fullscreen">
   <div class="fullscreen shade"></div>
   <!-- div class="i_popup" -->
-  <form action="#" class="popup" id="news_form">
-    <img class="close" src="img/x.png" onclick ="div_hide('news_popup')">
+  <form action="javascript:on_news_write()" class="popup" id="news_form">
+    <img class="close" src="img/x.png" onclick ="hide('news_popup')">
     <h2>Новое собщение</h2>
     <hr class="wide">
-    <input  name="id" type="hidden">
-    <input  name="title" placeholder="Заголовок" type="text">
-    <textarea id="text" name="text" placeholder="Текст"></textarea>
+    <input  name="id" type="hidden" value="$id">
+    <input  name="title" placeholder="Заголовок" type="text" value="$title">
+    <textarea id="text" name="text" placeholder="Текст">$text</textarea>
     <h4>Тип новости:</h4>
     <select name="type">
       <option>1</option>
@@ -103,6 +125,19 @@ try {
     <a href="javascript:on_news_write()" class="submit_button">Опубликовать</a>
   </form>
   </div></div>
+
+  <!-- Всплывающий диалог предупреждения -->
+  <div style="display:none;" id="news_del_popup" class="fullscreen">
+  <div class="fullscreen shade"></div>
+  <!-- div class="i_popup" -->
+  <form action="#" class="popup" id="news_del_form">
+    <img class="close" src="img/x.png" onclick ="hide('news_del_popup')">
+    <h2>Удалить сообщение?</h2>
+    <input name="id" type="hidden" value="$id">
+    <a href="javascript:on_news_delete($id)" class="submit_button">Да</a>
+  </form>
+  </div></div>
+
 *;
 
   print_tail();

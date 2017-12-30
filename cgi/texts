@@ -9,6 +9,8 @@ use warnings;
 use Try::Tiny;
 use common;
 use html;
+use utf8;
+use open ':std', ':encoding(UTF-8)';
 
 try {
   my $db = open_db;

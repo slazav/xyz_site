@@ -59,6 +59,7 @@ hr {
 /* главная рамка */
 .mainframe {
   border:2px solid #006496;
+  padding: 20px;
   border-radius:5px;
   background-color:#ffffff;
 }
@@ -285,3 +286,15 @@ form.popup {
   font-weight: bold;
   margin: 10px;
 }
+
+.com_bottom_panel{
+  text-align: left;
+  font-size: small;
+  color: #006496;
+  margin-bottom: 15px;
+}
+.com_bottom_panel > a{
+ font-size: small;
+ text-decoration:none;
+}
+

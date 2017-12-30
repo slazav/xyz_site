@@ -10,13 +10,15 @@ use JSON;
 use site;
 use common;
 use open ':std', ':encoding(UTF-8)';
-
+use Encode;
 
 ################################################
 
 try {
-  my $pars = { skip => param('skip') || 0,
-               num  => param('num') || 0 };
+  my $pars = { skip   => param('skip') || 0,
+               num    => param('num') || 20,
+               search => decode(utf8=>(param('search') || '')),
+             };
   my $res = list_objects(undef, 'news', $pars);
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->pretty()->encode($res), "\n";

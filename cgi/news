@@ -16,6 +16,7 @@ use safe_html;
 use html;
 use utf8;
 use open ':std', ':encoding(UTF-8)';
+use Encode;
 
 ################################################
 
@@ -27,6 +28,7 @@ try {
   $pars->{num}  = param('num') || 20;
   $pars->{skip} = param('skip') || 0;
   $pars->{titles} = defined param('titles');
+  $pars->{search} = decode utf8=>(param('search') || '');
 
   ####################
   # open DB, get all information:
@@ -34,8 +36,15 @@ try {
   my $u  = get_my_info($db);
   my $objects;
   my $o;
-  if ($pars->{id}) { $o = show_object($db, 'news', $pars); }
-  else { $objects = list_objects($db, 'news', $pars); }
+  my $comm;
+  if ($pars->{id}) {
+    $o = show_object($db, 'news', $pars);
+    $comm = list_comments($db, {coll=>'news', id=>$pars->{id}});
+  }
+  else {
+    $objects = list_objects($db, 'news', $pars);
+  }
+
 
   ####################
   # Print everything:
@@ -44,7 +53,7 @@ try {
   # print one
   if ($pars->{id}) {
     my $cu = mk_face($o->{cuser_info});
-    my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
+    my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{ctime});
     my $title = cleanup_txt($o->{title});
     my $text  = cleanup_htm($o->{text});
     my $type  = cleanup_txt($o->{type});
@@ -62,6 +71,26 @@ try {
     print "<div class='obj_top_panel'>$cu: $title</div>\n";
     print "<p class='news_body'>$text</p>\n";
     print "<div class='obj_bottom_panel'>$btm_panel</div>\n";
+    print "<hr>\n\n";
+
+    # comments
+    foreach my $c (@{$comm}){
+      my $cu = mk_face($c->{cuser_info});
+      my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($c->{ctime});
+      my $title = cleanup_txt($c->{title});
+      my $text  = cleanup_htm($c->{text});
+      my $m = ($c->{depth} || 0)*20;
+      print "<div class='comment' style='margin-left: $m;'>\n";
+      print "$cu: <b>$title</b><br>\n";
+      print "$text\n";
+      my $btm_panel = '';
+      $btm_panel .= "$ct";
+      $btm_panel .= " <a href='javascript:show(\"com_popup\")'>[редактировать]</a>" if $c->{can_edit};
+      $btm_panel .= " <a href='javascript:on_com_delete($c->{_id})'>[удалить]</a>" if $c->{can_delete};
+      print "<div class='com_bottom_panel'>$btm_panel</div>\n";
+      print "</div>\n";
+    }
+
   }
   # print many
   else {
@@ -71,10 +100,14 @@ try {
     my $n2 = $pars->{skip}+1 + $pars->{num};
     my $np = ($n1 - $pars->{num} - 1 < 0)? 0 : $n1 - $pars->{num} - 1;
     my $nn = $n1 + $pars->{num} - 1;
-    print "<div class=navigation>\n",
-      "<a href='news?skip=$np'>&lt&lt</a> $n1..$n2 <a href='news?skip=$nn'>&gt&gt</a>\n",
-      "<a href='javascript:show(\"news_popup\")'>[новое сообщение]</a>\n",
-      "</div>\n";
+    my $ns = $pars->{search}? "&search=$pars->{search}":"";
+
+    my $nav_panel = '';
+    $nav_panel.="<a href='news?skip=$np$ns'>&lt&lt</a> $n1..$n2 <a href='news?skip=$nn$ns'>&gt&gt</a>\n";
+    $nav_panel.=" <a href='javascript:show(\"news_popup\")'>[новое сообщение]</a>\n";
+    $nav_panel.=" Поиск: <input type=text name=search width=15>";
+
+    print "<div class=navigation><form action='#'>\n$nav_panel</form></div>\n";
 
     foreach my $o (@{$objects}) {
       my $cu = mk_face($o->{cuser_info});
@@ -89,13 +122,12 @@ try {
         print "<div class='title_panel'>$ct $cu: $title</div>\n";
       }
       else {
-        my $src = exists $o->{origin}? "<a href='$o->{origin}'>(источник)</a>":"";
         $o->{ncomm} = $o->{ncomm} || 0;
         my $com = "<a href='news?id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
 
         print "<hr><div class='obj_top_panel'>$cu: $title</div>\n";
         print "<p class='news_body'>$text</p>\n";
-        print "<div class='obj_bottom_panel'>$ct, $com $src</div>\n";
+        print "<div class='obj_bottom_panel'>$ct, $com</div>\n";
       }
     }
   }

@@ -14,6 +14,7 @@ BEGIN {
                    write_log get_session open_db next_id
                    get_my_info set_user_level user_list
                    write_object delete_object show_object list_objects
+                   list_comments
                   );
 }
 
@@ -176,25 +177,27 @@ sub check_perm {
   my $action = shift; # create, edit, delete, undel
   my $user   = shift;
   my $object = shift;
+  my $comment = shift;
 
-  my $owner = $object->{cuser} eq $user->{id};
+  my $myobject = $object->{cuser} eq $user->{id};
   my $mylvl = $user->{level};
   if ($coll eq 'news') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
-    return 1 if $action eq 'edit'   && ($owner || $mylvl >= $LEVEL_ADMIN) && !$object->{del} && !$object->{arc};
-    return 1 if $action eq 'delete' && ($owner || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
-    return 1 if $action eq 'undel'  && ($owner || $mylvl >= $LEVEL_MODER) && $object->{del};
+    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'pcat' || $coll eq 'geo') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
-    return 1 if $action eq 'edit'   && ($owner || $mylvl >= $LEVEL_NORM)  && !$object->{del} && !$object->{arc};
-    return 1 if $action eq 'delete' && ($owner || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
-    return 1 if $action eq 'undel'  && ($owner || $mylvl >= $LEVEL_MODER) && $object->{del};
+    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_NORM)  && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'comm') {
+    my $mycomment = $comment->{cuser} eq $user->{id};
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
     return 1 if $action eq 'edit'   && ($mycomment);
-    return 1 if $action eq 'delete' && ($mycomment || $owner || $mylvl >= $LEVEL_MODER);
+    return 1 if $action eq 'delete' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER);
   }
   return 0;
 }
@@ -330,7 +333,6 @@ sub object_expand {
   $o->{can_edit}   = 1 if check_perm($coll, 'edit',   $me, $o);
   $o->{can_delete} = 1 if check_perm($coll, 'delete', $me, $o);
   $o->{can_undel}  = 1 if check_perm($coll, 'undel',  $me, $o);
-
 }
 
 ############################################################
@@ -364,13 +366,15 @@ sub list_objects{
 
   my $me = get_my_info($db);
 
+  my $q = { 'del' => { '$exists' => 0 }, 'arc' => { '$exists' => 0 } };
+  $q->{'$text'} = {'$search' => $pars->{search}} if $pars->{search};
+
   # open object collection, get object information
   my $objects = $db->get_collection( $coll );
-  my $query_result = $objects->find({
-      'del' => { '$exists' => 0 },
-      'arc' => { '$exists' => 0 }
-    }, {
-      'limit'=>$pars->{num}||25, 'skip'=>$pars->{skip}||0, 'sort'=>{'_id', -1}
+  my $query_result = $objects->find($q, {
+      'limit'=>$pars->{num}||25,
+      'skip'=>$pars->{skip}||0,
+      'sort'=>{'_id', -1}
     })->result;
 
   my $ret=[];
@@ -380,5 +384,66 @@ sub list_objects{
   }
   return $ret;
 }
+
+############################################################
+# add additional fields for list_comments
+sub comment_expand {
+  my $db   = shift; # database
+  my $coll = shift; # collection name
+  my $me   = shift; # user
+  my $o    = shift;
+  my $c    = shift;
+  my $users = $db->get_collection('users');
+
+  # build human-readable user information
+  my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
+  $c->{cuser_info} = $users->find_one({'_id'=>$c->{cuser}}, $pr);
+
+  $c->{can_edit}   = 1 if check_perm('comm', 'edit',   $me, $o, $c);
+  $c->{can_delete} = 1 if check_perm('comm', 'delete', $me, $o, $c);
+}
+
+############################################################
+# List comments.
+# S/D comments are skipped
+sub list_comments {
+  my $db   = shift || open_db(); # database
+  my $pars  = shift; # (id, coll)
+
+  # get user information
+  my $me = get_my_info($db);
+
+  # get object information
+  my $objects = $db->get_collection( $pars->{coll} );
+  my $obj  = $objects->find_one({'_id' => $pars->{id}+0}, {'text'=>0, 'title'=>0});
+  die "can't find object in $pars->{coll}: $pars->{id}" unless ($obj);
+
+  # get all comments
+  my $comm = $db->get_collection( 'comm' );
+  my $q = { 'coll' => $pars->{coll}, 'object_id' => $pars->{id}+0 };
+  my $query_result = $comm->find($q, { 'sort'=>{'_id', 1} })->result;
+
+  my $children;
+  while ( my $next = $query_result->next ) {
+    comment_expand($db, $pars->{coll}, $me, $obj, $next);
+    push @{$children->{$next->{parent_id} || 0}}, $next;
+  }
+
+  my $ret=[];
+  sub add_comm{
+    my $ret = shift;
+    my $id = shift || 0;
+    my $depth = shift || 0;
+    foreach (@{$children->{$id}}){
+      $_->{depth} = $depth if $depth;
+      push @{$ret}, $_;
+      add_comm($ret,$_->{_id}, $depth+1);
+    }
+  }
+  add_comm($ret);
+
+  return $ret;
+}
+
 
 1;

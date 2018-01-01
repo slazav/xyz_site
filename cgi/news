@@ -148,10 +148,10 @@ try {
     }
   }
 
-  my $id    = $o->{_id}    || '';
-  my $title = $o->{title} || '';
-  my $text  = $o->{text}  || '';
-  my $type  = $o->{type}  || '';
+  my $id    = cleanup_int($o->{_id}   || '');
+  my $title = cleanup_txt($o->{title} || '');
+  my $text  = cleanup_txt($o->{text}  || '');
+  my $type  = cleanup_txt($o->{type}  || '');
   print qq*
   <!-- Всплывающий диалог нового сообщения -->
   <div style="display:none;" id="news_popup" class="fullscreen">

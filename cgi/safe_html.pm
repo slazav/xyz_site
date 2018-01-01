@@ -62,6 +62,7 @@ sub cleanup_htm {
     my $text = shift;
     $text =~ s|\b(https?://\S*)|<a href="$1">$1</a>|ig
       if $#tags<0 || $tags[$#tags] ne 'a';
+    $text =~ s/\n/\n<br>/g;
     $out.=$text;
   }
 
@@ -151,7 +152,6 @@ sub cleanup_htm {
   $P->parse($inp) || die $!;
   $P->eof;
 
-  $out =~ s/\n/\n<br>/g;
   return $out;
 }
 

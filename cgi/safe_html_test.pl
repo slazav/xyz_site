@@ -121,12 +121,12 @@ cleanup_htm('
 
 assert "htm: wrap refs",
 cleanup_htm('
- <a href="http://abc">http://abc</a>
+ <a
+ href="http://abc">http://abc</a>
  http://def', 300),
 '
 <br> <a href="http://abc">http://abc</a>
 <br> <a href="http://def">http://def</a>';
-
 
 
 

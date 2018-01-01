@@ -75,12 +75,26 @@ try {
 
     # comments
     foreach my $c (@{$comm}){
+      my $m = ($c->{depth} || 0)*20;
+      print "<div class='comment' style='margin-left: $m;'>\n";
+
+      if ($c->{state} && $c->{state} eq 'D'){
+        print "<b>(deleted comment)</b>\n";
+        print "<div class='com_bottom_panel'></div>\n";
+        print "</div>\n";
+        next;
+      }
+      if ($c->{state} && $c->{state} eq 'S'){
+        print "<b>(screened comment)</b>\n";
+        print "<div class='com_bottom_panel'></div>\n";
+        print "</div>\n";
+        next;
+      }
+
       my $cu = mk_face($c->{cuser_info});
       my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($c->{ctime});
       my $title = cleanup_txt($c->{title});
       my $text  = cleanup_htm($c->{text});
-      my $m = ($c->{depth} || 0)*20;
-      print "<div class='comment' style='margin-left: $m;'>\n";
       print "$cu: <b>$title</b><br>\n";
       print "$text\n";
       my $btm_panel = '';
@@ -101,11 +115,13 @@ try {
     my $np = ($n1 - $pars->{num} - 1 < 0)? 0 : $n1 - $pars->{num} - 1;
     my $nn = $n1 + $pars->{num} - 1;
     my $ns = $pars->{search}? "&search=$pars->{search}":"";
+    # protect search value
+    my $search = cleanup_txt($pars->{search}); $search =~ s/\'//g;
 
     my $nav_panel = '';
     $nav_panel.="<a href='news?skip=$np$ns'>&lt&lt</a> $n1..$n2 <a href='news?skip=$nn$ns'>&gt&gt</a>\n";
     $nav_panel.=" <a href='javascript:show(\"news_popup\")'>[новое сообщение]</a>\n";
-    $nav_panel.=" Поиск: <input type=text name=search width=15>";
+    $nav_panel.=" Поиск: <input type=text name=search width=15 value='$search'>";
 
     print "<div class=navigation><form action='#'>\n$nav_panel</form></div>\n";
 

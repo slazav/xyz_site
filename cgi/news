@@ -78,13 +78,13 @@ try {
       my $m = ($c->{depth} || 0)*20;
       print "<div class='comment' style='margin-left: $m;'>\n";
 
-      if ($c->{state} && $c->{state} eq 'D'){
+      if (($c->{state} || '') eq 'D' && ($c->{children} || 0)){
         print "<b>(deleted comment)</b>\n";
         print "<div class='com_bottom_panel'></div>\n";
         print "</div>\n";
         next;
       }
-      if ($c->{state} && $c->{state} eq 'S'){
+      if (($c->{state} || '') eq 'S' && ($c->{children} || 0)){
         print "<b>(screened comment)</b>\n";
         print "<div class='com_bottom_panel'></div>\n";
         print "</div>\n";

@@ -436,6 +436,8 @@ sub list_comments {
     my $depth = shift || 0;
     foreach (@{$children->{$id}}){
       $_->{depth} = $depth if $depth;
+      $_->{children} = $#{$children->{$_->{_id}}}+1
+        if $#{$children->{$_->{_id}}}>=0;
       push @{$ret}, $_;
       add_comm($ret,$_->{_id}, $depth+1);
     }

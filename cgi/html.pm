@@ -42,6 +42,8 @@ our %site_icons = (
 sub mk_face {
   my $u = shift;
   return "" unless $u;
+  return "<b>anonymous</b>" if ($u->{_id} eq 'anonymous');
+  return "<b>anonymous</b>" if ($u->{_id} eq 'livejournal');
   return "<span class='user_face'><a href='$u->{_id}'>" .
          "<img class='login_img' alt='($u->{site})' src='$site_icons{$u->{site}}'>" .
          "$u->{name}</a></span>";

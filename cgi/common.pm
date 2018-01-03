@@ -183,14 +183,14 @@ sub check_perm {
   my $mylvl = $user->{level};
   if ($coll eq 'news') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
-    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$object->{del} && !$object->{arc};
-    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$object->{del} && !$object->{next};
+    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{next};
     return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'pcat' || $coll eq 'geo') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
-    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_NORM)  && !$object->{del} && !$object->{arc};
-    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{arc};
+    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_NORM)  && !$object->{del} && !$object->{next};
+    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{next};
     return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'comm') {
@@ -217,8 +217,8 @@ sub write_object{
   $obj->{mtime} = time;
   # user can't set these fields directly:
   delete $obj->{del};
-  delete $obj->{arc};
   delete $obj->{prev};
+  delete $obj->{next};
 
   # open object collection, get old object information (if change of existing id is needed)
   my $objects = $db->get_collection( $coll );
@@ -236,7 +236,8 @@ sub write_object{
 
     # save old information:
     $o->{_id}   = next_id($db, "$coll");
-    $o->{arc}   = 1;
+    $o->{next}  = $id;
+    # save archive object
     my $res = $objects->insert_one($o);
     die "can't put an object into archive"
       unless $res->acknowledged;
@@ -248,7 +249,7 @@ sub write_object{
     $obj->{cuser} = $o->{cuser};
     $obj->{prev}  = $res->inserted_id;
 
-    # save archive object
+    # update object
     $res = $objects->replace_one({'_id' => $id}, $obj);
     die "Can't write an object"
       unless $res->acknowledged;
@@ -322,13 +323,13 @@ sub object_expand {
   $o->{cuser_info} = $users->find_one({'_id'=>$o->{cuser}}, $pr);
 
   if ($o->{muser}) {
-    if ($o->{muser} == $o->{cuser}){ $o->{muser_info} = $o->{cuser_info}; }
+    if ($o->{muser} eq $o->{cuser}){ $o->{muser_info} = $o->{cuser_info}; }
     else { $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr); }
   }
 
   if ($o->{duser}) {
-    if    ($o->{duser} == $o->{cuser}){ $o->{duser_info} = $o->{cuser_info}; }
-    elsif ($o->{duser} == $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
+    if    ($o->{duser} eq $o->{cuser}){ $o->{duser_info} = $o->{cuser_info}; }
+    elsif ($o->{duser} eq $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
     else { $o->{duser_info} = $users->find_one({'_id'=>$o->{duser}}, $pr); }
   }
   $o->{can_edit}   = 1 if check_perm($coll, 'edit',   $me, $o);
@@ -367,7 +368,7 @@ sub list_objects{
 
   my $me = get_my_info($db);
 
-  my $q = { 'del' => { '$exists' => 0 }, 'arc' => { '$exists' => 0 } };
+  my $q = { 'del' => { '$exists' => 0 }, 'next' => { '$exists' => 0 } };
   $q->{'$text'} = {'$search' => $pars->{search}} if $pars->{search};
 
   # open object collection, get object information

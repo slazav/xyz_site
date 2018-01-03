@@ -60,11 +60,11 @@ try {
     my $type  = cleanup_txt($o->{type});
 
     my $btm_panel = '';
-    $btm_panel .= " <i>Создано: $cu, $ct</i><br>";
+    $btm_panel .= " <i>$cu, $ct</i><br>";
     if ($o->{prev}){
       my $mt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{mtime});
-      my $mu = mk_face($o->{muser_info});
-      if ($o->{muser} != $o->{cuser}){
+      if ($o->{muser} ne $o->{cuser}){
+        my $mu = mk_face($o->{muser_info});
         $btm_panel .= "<i>Отредактировано: $mu, $mt</i>";
       } else {
         $btm_panel .= "<i>Отредактировано автором: $mt</i>";
@@ -72,13 +72,17 @@ try {
       $btm_panel .= " - <a href='news?id=$o->{prev}'>старая версия</a>" if $o->{prev};
       $btm_panel .= "<br>";
     }
-    if ($o->{arc}){
-      $btm_panel .= " <i>Архивная версия</i><br>" if $o->{arc};
+    if ($o->{next}){
+      $btm_panel .= " <i>Архив</i> - <a href='news?id=$o->{next}'>исправленная версия</a>";
     }
     if ($o->{del}){
       my $dt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{dtime});
-      my $du = mk_face($o->{duser_info});
-      $btm_panel .= " <i>Удалено: $du, $dt</i><br>";
+      if ($o->{duser} ne $o->{cuser}) {
+        my $du = mk_face($o->{duser_info});
+        $btm_panel .= " <i>Удалено: $du, $dt</i><br>";
+      } else {
+        $btm_panel .= "<i>Удалено автором: $dt</i>";
+      }
     }
 
     $btm_panel .= " <a href='javascript:show(\"news_del_popup\")'>[удалить]</a>" if $o->{can_delete};
@@ -86,7 +90,7 @@ try {
     $btm_panel .= " <a href='javascript:show(\"news_popup\")'>[редактировать]</a>" if $o->{can_edit};
     $btm_panel .= " <i><a href='$o->{origin}'>(источник)</a></i>" if exists $o->{origin};
 
-    print "<div class='obj_top_panel'>$cu: $title</div>\n";
+    print "<div class='obj_top_panel'>$title</div>\n";
     print "<p class='news_body'>$text</p>\n";
     print "<div class='obj_bottom_panel right'>$btm_panel</div>\n";
     print "<hr>\n\n";

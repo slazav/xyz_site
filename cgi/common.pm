@@ -218,6 +218,7 @@ sub write_object{
   # user can't set these fields directly:
   delete $obj->{del};
   delete $obj->{prev};
+  delete $obj->{ncomm};
   delete $obj->{next};
 
   # open object collection, get old object information (if change of existing id is needed)
@@ -247,6 +248,7 @@ sub write_object{
     # transfer some fields from old object to the new one:
     $obj->{ctime} = $o->{ctime};
     $obj->{cuser} = $o->{cuser};
+    $obj->{ncomm} = $o->{ncomm};
     $obj->{prev}  = $res->inserted_id;
 
     # update object

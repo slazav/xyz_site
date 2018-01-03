@@ -270,25 +270,26 @@ form.popup {
 }
 
 .obj_bottom_panel{
-  text-align: right;
   margin-bottom: 2px;
 }
 .obj_bottom_panel > a {
+  font-size: normal;
   text-decoration:none;
 }
 
-.navigation > a {
-  color: #006496;
-  text-decoration:none;
-}
+.center { text-align: center; }
+.left   { text-align: left; }
+.right  { text-align: right; }
+
 .navigation {
-  color: #006496;
-  font-weight: bold;
-  margin: 10px;
+  margin: 2px;
+}
+.navigation > a {
+  font-size: normal;
+  text-decoration:none;
 }
 
 .com_bottom_panel{
-  text-align: left;
   font-size: small;
   color: #006496;
   margin-bottom: 15px;

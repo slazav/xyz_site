@@ -11,6 +11,7 @@ BEGIN {
   our @EXPORT = qw(
     %level_names %site_icons
     mk_face print_head print_tail print_error
+    mk_count_nav
   );
 }
 
@@ -160,4 +161,30 @@ sub print_error {
 </html>
 *;
 }
+
 ################################################
+# navigation panel "<< 1..25/123 >>"
+sub mk_count_nav {
+  my $pref  = shift; # url prefix (ends with ? or &)
+  my $skip  = shift;
+  my $num   = shift;
+  my $count = shift;
+
+  my $n1 = $skip+1; # first value
+  my $n2 = $skip+1 + $num; # last value
+  $n2 = $count if $n2 > $count;
+  my $np = $n1 - $num - 1;
+  $np = 0 if $np < 0;
+  $np = $count-$num if $np > $count-$num;
+  my $nn = $n1 + $num - 1;
+  $nn = 0 if $nn < 0;
+  $nn = $count-$num if $nn > $count-$num;
+
+  return "<div class='navigation center'>\n" .
+         "<a href='${pref}skip=$np'>&lt&lt</a>\n" .
+         "$n1 .. $n2 / $count\n".
+         "<a href='${pref}skip=$nn'>&gt&gt</a>\n" .
+         "</div>\n";
+}
+
+1;

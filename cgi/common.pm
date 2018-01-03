@@ -248,6 +248,7 @@ sub write_object{
     $obj->{cuser} = $o->{cuser};
     $obj->{prev}  = $res->inserted_id;
 
+    # save archive object
     $res = $objects->replace_one({'_id' => $id}, $obj);
     die "Can't write an object"
       unless $res->acknowledged;
@@ -376,13 +377,14 @@ sub list_objects{
       'skip'=>$pars->{skip}||0,
       'sort'=>{'_id', -1}
     })->result;
+  my $count = $objects->count($q);
 
   my $ret=[];
   while ( my $next = $query_result->next ) {
     object_expand($db, $coll, $me, $next);
     push @{$ret}, $next;
   }
-  return $ret;
+  return $ret, $count;
 }
 
 ############################################################

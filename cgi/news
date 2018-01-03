@@ -37,12 +37,13 @@ try {
   my $objects;
   my $o;
   my $comm;
+  my $count;
   if ($pars->{id}) {
     $o = show_object($db, 'news', $pars);
     $comm = list_comments($db, {coll=>'news', id=>$pars->{id}});
   }
   else {
-    $objects = list_objects($db, 'news', $pars);
+    ($objects, $count) = list_objects($db, 'news', $pars);
   }
 
 
@@ -59,18 +60,35 @@ try {
     my $type  = cleanup_txt($o->{type});
 
     my $btm_panel = '';
-    $btm_panel .= " Сообщение удалено"  if $o->{del};
-    $btm_panel .= " Архивное сообщение" if $o->{arc};
-    $btm_panel .= " <a href='news?id=$o->{prev}'>Старая версия</a>" if $o->{prev};
+    $btm_panel .= " <i>Создано: $cu, $ct</i><br>";
+    if ($o->{prev}){
+      my $mt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{mtime});
+      my $mu = mk_face($o->{muser_info});
+      if ($o->{muser} != $o->{cuser}){
+        $btm_panel .= "<i>Отредактировано: $mu, $mt</i>";
+      } else {
+        $btm_panel .= "<i>Отредактировано автором: $mt</i>";
+      }
+      $btm_panel .= " - <a href='news?id=$o->{prev}'>старая версия</a>" if $o->{prev};
+      $btm_panel .= "<br>";
+    }
+    if ($o->{arc}){
+      $btm_panel .= " <i>Архивная версия</i><br>" if $o->{arc};
+    }
+    if ($o->{del}){
+      my $dt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{dtime});
+      my $du = mk_face($o->{duser_info});
+      $btm_panel .= " <i>Удалено: $du, $dt</i><br>";
+    }
+
     $btm_panel .= " <a href='javascript:show(\"news_del_popup\")'>[удалить]</a>" if $o->{can_delete};
     $btm_panel .= " <a href='javascript:on_news_undel($o->{_id})'>[восстановить]</a>" if $o->{can_undel};
     $btm_panel .= " <a href='javascript:show(\"news_popup\")'>[редактировать]</a>" if $o->{can_edit};
-    $btm_panel .= " <i>$ct</i>";
     $btm_panel .= " <i><a href='$o->{origin}'>(источник)</a></i>" if exists $o->{origin};
 
     print "<div class='obj_top_panel'>$cu: $title</div>\n";
     print "<p class='news_body'>$text</p>\n";
-    print "<div class='obj_bottom_panel'>$btm_panel</div>\n";
+    print "<div class='obj_bottom_panel right'>$btm_panel</div>\n";
     print "<hr>\n\n";
 
     # comments
@@ -108,22 +126,19 @@ try {
   }
   # print many
   else {
-
-    # navigation panel
-    my $n1 = $pars->{skip}+1;
-    my $n2 = $pars->{skip}+1 + $pars->{num};
-    my $np = ($n1 - $pars->{num} - 1 < 0)? 0 : $n1 - $pars->{num} - 1;
-    my $nn = $n1 + $pars->{num} - 1;
-    my $ns = $pars->{search}? "&search=$pars->{search}":"";
     # protect search value
     my $search = cleanup_txt($pars->{search}); $search =~ s/\'//g;
+    my $ns = $pars->{search}? "search=$pars->{search}&":"";
 
+    # search/new panel
     my $nav_panel = '';
-    $nav_panel.="<a href='news?skip=$np$ns'>&lt&lt</a> $n1..$n2 <a href='news?skip=$nn$ns'>&gt&gt</a>\n";
+    $nav_panel.=" Поиск по тексту: <input type=text name=search width=15 value='$search'>";
     $nav_panel.=" <a href='javascript:show(\"news_popup\")'>[новое сообщение]</a>\n";
-    $nav_panel.=" Поиск: <input type=text name=search width=15 value='$search'>";
+    print "<form action='#' class='navigation right'>\n$nav_panel</form>\n";
 
-    print "<div class=navigation><form action='#'>\n$nav_panel</form></div>\n";
+    # << >> panel
+    my $nav_panel1 = mk_count_nav "news?$ns", $pars->{skip}, $pars->{num}, $count;
+    print $nav_panel1;
 
     foreach my $o (@{$objects}) {
       my $cu = mk_face($o->{cuser_info});
@@ -144,9 +159,11 @@ try {
 
         print "<hr><div class='obj_top_panel'>$cu: $title</div>\n";
         print "<p class='news_body'>$text</p>\n";
-        print "<div class='obj_bottom_panel'>$ct, $com</div>\n";
+        print "<div class='obj_bottom_panel right'>$ct, $com</div>\n";
       }
     }
+    print $nav_panel1;
+
   }
 
   my $id    = cleanup_int($o->{_id}   || '');

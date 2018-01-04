@@ -172,6 +172,8 @@ function on_logout(){
 function on_set_level(id,level){
   do_request('set_level', {id: id, level: level}, do_reload);
 }
+
+/////////////////////////////////////////////////////////////////
 function on_news_write(){
   var f = document.getElementById("news_form");
   args = {};
@@ -186,7 +188,6 @@ function after_news_write(data) {
   document.getElementById("news_form").reset();
   location.reload();
 }
-
 function on_news_delete(id){
   do_request('news_delete', {id: id, del: 1}, do_reload);
   hide("news_del_popup");
@@ -194,17 +195,92 @@ function on_news_delete(id){
 function on_news_undel(id){
   do_request('news_delete', {id: id, del: 0}, do_reload);
 }
+/////////////////////////////////////////////////////////////////
 
-function on_com_add(id){
+function close_com_form(){
+  var f = document.getElementsByClassName("com_form");
+  for (i = 0; i < f.length; i++) { f[i].innerHTML = '';}
 }
-function on_com_edit(id){
+
+function com_new_form(oid, pid){
+  close_com_form();
+  /* one can use negative pid's to have a few places
+     for new top-level comments */
+  var fid = "com"+pid;
+  if (pid<0) {pid=0;}
+  document.getElementById(fid).innerHTML =
+     "<form id=com_form action='javascript:on_com_new()'>"
+   + "Ответить:<br>"
+   + "<input name='parent_id' type='hidden' value='"+ pid +"'>"
+   + "<input name='object_id' type='hidden' value='"+ oid +"'>"
+   + "<input name='coll' type='hidden' value='news'>"
+   + "<input name='title' placeholder='Заголовок' type='text'>"
+   + "<textarea name=text placeholder='Текст'></textarea><br>"
+   + "<a href='javascript:on_com_new()' >Опубликовать</a>"
+   + "<a href='javascript:close_com_form()'>Закрыть</a>"
+   + "</form>";
 }
-function on_com_delete(id){
+
+function com_edit_form(id){
+  close_com_form();
+  document.getElementById("com"+id).innerHTML =
+     "<form id=com_form action='javascript:on_com_edit()'>"
+   + "Редактировать:<br>"
+   + "<input name='id' type='hidden' value='"+ id +"'>"
+   + "<input name='coll' type='hidden' value='news'>"
+   + "<input name='title' placeholder='Заголовок' type='text'>"
+   + "<textarea name=text placeholder='Текст'></textarea><br>"
+   + "<a href='javascript:on_com_edit()' >Опубликовать</a>"
+   + "<a href='javascript:close_com_form()'>Закрыть</a>"
+   + "</form>";
+   do_request('com_show', {id: id, nohtm: 1}, fill_com_form);
+}
+
+function com_del_form(id){
+  close_com_form();
+  document.getElementById("com"+id).innerHTML =
+     "<form id=com_form action='javascript:on_com_delete()'>"
+   + "<input name='id' type='hidden' value='"+ id +"'>"
+   + "Удалить комментарий?"
+   + "<a href='javascript:on_com_delete()' >Да</a>"
+   + "<a href='javascript:close_com_form()'>Нет</a>"
+   + "</form>";
+}
+
+function fill_com_form(data){
+  var f = document.getElementById('com_form');
+  f.elements['title'].value = data.title;
+  f.elements['text'].value  = data.text;
+}
+
+function on_com_new(){
+  var f = document.getElementById('com_form');
+  var pars = {};
+  pars.parent_id = f.elements['parent_id'].value;
+  pars.object_id = f.elements['object_id'].value;
+  pars.title     = f.elements['title'].value;
+  pars.text      = f.elements['text'].value;
+  pars.coll      = f.elements['coll'].value;
+  do_request('com_new', pars, do_reload);
+}
+
+function on_com_edit(){
+  var f = document.getElementById('com_form');
+  var pars = {};
+  pars.id        = f.elements['id'].value;
+  pars.title     = f.elements['title'].value;
+  pars.text      = f.elements['text'].value;
+  pars.coll      = f.elements['coll'].value;
+  do_request('com_edit', pars, do_reload);
+}
+
+function on_com_delete(){
+  var f = document.getElementById('com_form');
+  var id = f.elements['id'].value;
   do_request('com_delete', {id: id}, do_reload);
 }
 
 /////////////////////////////////////////////////////////////////
-// working with news
 
 function show(id) { document.getElementById(id).style.display = "block"; }
 function hide(id) { document.getElementById(id).style.display = "none"; }

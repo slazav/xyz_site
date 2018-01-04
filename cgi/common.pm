@@ -14,7 +14,7 @@ BEGIN {
                    write_log get_session open_db next_id
                    get_my_info set_user_level user_list
                    write_object delete_object show_object list_objects
-                   list_comments delete_comment
+                   list_comments show_comment delete_comment new_comment edit_comment
                   );
 }
 
@@ -179,7 +179,7 @@ sub check_perm {
   my $object = shift;
   my $comment = shift;
 
-  my $myobject = $object->{cuser} eq $user->{id};
+  my $myobject = $object->{cuser} eq $user->{_id};
   my $mylvl = $user->{level};
   if ($coll eq 'news') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
@@ -194,8 +194,8 @@ sub check_perm {
     return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'comm') {
-    my $mycomment = $comment->{cuser} eq $user->{id};
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
+    my $mycomment = $comment->{cuser} eq $user->{_id};
     return 1 if $action eq 'edit'   && ($mycomment);
     return 1 if $action eq 'delete' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER);
   }
@@ -464,6 +464,20 @@ sub list_comments {
 }
 
 ############################################################
+# Show comment.
+sub show_comment {
+  my $db = shift || open_db(); # database
+  my $id = shift;
+
+  # get all comments
+  my $comments = $db->get_collection( 'comm' );
+  my $ret = $comments->find_one({'_id' => $id+0});
+  die "can't find comment: $id" unless $ret;
+
+  return $ret;
+}
+
+############################################################
 # Update ncomm field in an object
 sub update_ncomm {
   my $db   = shift;
@@ -498,7 +512,7 @@ sub delete_comment {
   # get object information
   my $objects = $db->get_collection( $coll );
   my $obj  = $objects->find_one({'_id' => $oid+0}, {'text'=>0, 'title'=>0});
-  die "can't find object in $pars->{coll}: $oid" unless ($obj);
+  die "can't find object in $coll: $oid" unless ($obj);
 
   # check user permissions
   die "permission denied"
@@ -511,11 +525,83 @@ sub delete_comment {
 
   update_ncomm $db, $coll, $oid;
 
-  write_log($obj_log, "DEL COMM $coll: " . JSON->new->canonical()->encode($com) );
+  write_log($obj_log, "DEL $coll COMM: " . JSON->new->canonical()->encode($com) );
   return {"ret" => 0};
 }
 
+############################################################
+# New comment
+sub new_comment {
+  my $db = shift || open_db(); # database
+  my $com = shift;
 
+  # get user information
+  my $me = get_my_info($db);
 
+  # get object information
+  my $objects = $db->get_collection( $com->{coll} );
+  my $obj  = $objects->find_one({'_id' => $com->{object_id}+0}, {'text'=>0, 'title'=>0});
+  die "can't find object in $com->{coll}: $com->{object_id}" unless $obj;
 
+  # check parent comment
+  my $comments = $db->get_collection( 'comm' );
+  if ($com->{parent_id}) {
+    my $pcom = $comments->find_one({'_id' => $com->{parent_id}+0}, {'text'=>0, 'title'=>0});
+    die "can't find parent comment: $com->{parent_id}" unless $pcom;
+  }
+
+  # check user permissions
+  die "permission denied"
+    unless check_perm('comm', 'create', $me, $obj);
+
+  $com->{_id}       = next_id($db, 'comm')+0;
+  $com->{cuser}     = $me->{_id};
+  $com->{ctime}     = time;
+  delete $com->{state};
+
+  my $res = $comments->insert_one($com);
+  die "Can't put comment into the database"
+    unless $res->acknowledged;
+
+  update_ncomm $db, $com->{coll}, $com->{object_id};
+
+  write_log($obj_log, "NEW $coll COMM: " . JSON->new->canonical()->encode($com) );
+  return {"ret" => 0};
+}
+
+############################################################
+# Edit comment
+sub edit_comment {
+  my $db = shift || open_db(); # database
+  my $com = shift;
+
+  # get user information
+  my $me = get_my_info($db);
+
+  # get the comment
+  my $comments = $db->get_collection( 'comm' );
+  my $ocom = $comments->find_one({'_id' => $com->{_id}+0}, {'text'=>0, 'title'=>0});
+    die "can't find parent comment: $com->{_id}" unless $ocom;
+
+  # get object information
+  my $objects = $db->get_collection( $com->{coll} );
+  my $obj  = $objects->find_one({'_id' => $ocom->{object_id}+0}, {'text'=>0, 'title'=>0});
+  die "can't find object in $com->{coll}: $ocom->{object_id}" unless $obj;
+
+  # check user permissions
+  die "permission denied"
+    unless check_perm('comm', 'edit', $me, $obj, $ocom);
+
+  my $u = $comments->find_one_and_update({'_id' => $com->{_id}+0},
+        {'$set'=>{ 'title'=>$com->{title},
+                   'text'=>$com->{text},
+                   'mtime'=>time }});
+
+  die "Can't put comment into the database" unless $u;
+
+  write_log($obj_log, "EDIT $coll COMM: " . JSON->new->canonical()->encode($com) );
+  return {"ret" => 0};
+}
+
+############################################################
 1;

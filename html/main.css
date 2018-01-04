@@ -258,44 +258,62 @@ form.popup {
 .is_admin  { visibility: hidden; }
 
 /**********************************************/
-/* news */
-
-.obj_top_panel {
+/* panels */
+.title {
   font-size: x-large;
   font-weight: bold;
   margin: 0px 5px 10px;
 }
-.obj_top_panel > a {
+.title > * {
+  font-size: x-large;
+  font-weight: bold;
   text-decoration:none;
 }
 
-.obj_bottom_panel{
-  margin-bottom: 2px;
+.title_list {
+  font-size: large;
+  font-weight: bold;
+  margin: 0px;
 }
-.obj_bottom_panel > a {
-  font-size: normal;
+.title_list > * {
+  font-size: large;
+  font-weight: bold;
   text-decoration:none;
 }
+
+.obj_info {
+  font-size: medium;
+  font-style: italic;
+  margin-bottom: 2px;
+}
+.obj_info > * {
+  font-size: medium;
+  font-style: italic;
+  text-decoration:none;
+}
+
+.com_info {
+  font-size: small;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+.com_info > * {
+  font-size: small;
+  font-style: italic;
+  text-decoration:none;
+}
+
+.nav {
+  font-size: large;
+}
+.nav > * {
+  font-size: large;
+  text-decoration:none;
+}
+
 
 .center { text-align: center; }
 .left   { text-align: left; }
 .right  { text-align: right; }
 
-.navigation {
-  margin: 2px;
-}
-.navigation > a {
-  font-size: normal;
-  text-decoration:none;
-}
-
-.com_bottom_panel{
-  font-size: small;
-  color: #006496;
-  margin-bottom: 15px;
-}
-.com_bottom_panel > a{
- font-size: small;
- text-decoration:none;
-}
 

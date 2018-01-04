@@ -14,7 +14,7 @@ BEGIN {
                    write_log get_session open_db next_id
                    get_my_info set_user_level user_list
                    write_object delete_object show_object list_objects
-                   list_comments
+                   list_comments delete_comment
                   );
 }
 
@@ -410,7 +410,6 @@ sub comment_expand {
 
 ############################################################
 # List comments.
-# S/D comments are skipped
 sub list_comments {
   my $db   = shift || open_db(); # database
   my $pars  = shift; # (id, coll)
@@ -428,6 +427,7 @@ sub list_comments {
   my $q = { 'coll' => $pars->{coll}, 'object_id' => $pars->{id}+0 };
   my $query_result = $comm->find($q, { 'sort'=>{'_id', 1} })->result;
 
+  # sort comments to have the tree
   my $children;
   while ( my $next = $query_result->next ) {
     comment_expand($db, $pars->{coll}, $me, $obj, $next);
@@ -449,8 +449,73 @@ sub list_comments {
   }
   add_comm($ret);
 
+  # We want to mark deleted/screened comments with non-deleted
+  # children
+  my $d = 0;
+  my $f = 0;
+  foreach my $c (reverse @{$ret}){
+    $f=0 if ($c->{depth}||0) >= $d; # step up
+    $c->{has_children}=1 if $f && exists $c->{state};
+    $f=1 if !exists $c->{state};
+    $d = $c->{depth}||0;
+  }
+
   return $ret;
 }
+
+############################################################
+# Update ncomm field in an object
+sub update_ncomm {
+  my $db   = shift;
+  my $coll = shift;
+  my $id   = shift;
+  my $objects  = $db->get_collection( $coll );
+  my $comments = $db->get_collection( 'comm' );
+  die "Can't connect to a database" unless $objects || $comments;
+
+  my $count = $comments->count({'coll' => $coll, 'object_id' => $id+0, 'state' => {'$exists'=>0}});
+  my $u = $objects->find_one_and_update({'_id' => $id+0}, {'$set'=>{'ncomm'=>$count}});
+  die "Can't update ncomm" unless $u;
+}
+
+############################################################
+# Delete a comment
+sub delete_comment {
+  my $db = shift || open_db(); # database
+  my $id = shift;
+
+  # get user information
+  my $me = get_my_info($db);
+
+  # get comment information
+  my $comments = $db->get_collection( 'comm' );
+  my $com = $comments->find_one({'_id' => $id+0}, {'text'=>0, 'title'=>0});
+  die "can't find comment: $id" unless ($com);
+
+  my $oid  = $com->{object_id};
+  my $coll = $com->{coll};
+
+  # get object information
+  my $objects = $db->get_collection( $coll );
+  my $obj  = $objects->find_one({'_id' => $oid+0}, {'text'=>0, 'title'=>0});
+  die "can't find object in $pars->{coll}: $oid" unless ($obj);
+
+  # check user permissions
+  die "permission denied"
+    unless check_perm('comm', 'delete', $me, $obj, $com);
+
+  # delete comment
+  my $upd = {'$unset' => {'title' => '', 'text' => ''}, '$set' => {'state', 'D'}};
+  my $u = $comments->find_one_and_update({'_id' => $id+0}, $upd);
+  die "Can't write a comment" unless $u;
+
+  update_ncomm $db, $coll, $oid;
+
+  write_log($obj_log, "DEL COMM $coll: " . JSON->new->canonical()->encode($com) );
+  return {"ret" => 0};
+}
+
+
 
 
 1;

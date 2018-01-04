@@ -1,6 +1,7 @@
 package html;
 use site;
 use CGI ':standard';
+use POSIX qw(strftime);
 use safe_html;
 use utf8;
 
@@ -11,7 +12,7 @@ BEGIN {
   our @EXPORT = qw(
     %level_names %site_icons
     mk_face print_head print_tail print_error
-    mk_count_nav
+    mk_count_nav mk_info_panel
   );
 }
 
@@ -180,11 +181,47 @@ sub mk_count_nav {
   $nn = 0 if $nn < 0;
   $nn = $count-$num if $nn > $count-$num;
 
-  return "<div class='navigation center'>\n" .
+  return "<div class='nav center'>\n" .
          "<a href='${pref}skip=$np'>&lt&lt</a>\n" .
          "$n1 .. $n2 / $count\n".
          "<a href='${pref}skip=$nn'>&gt&gt</a>\n" .
          "</div>\n";
+}
+
+################################################
+# object bottom panel "Created/Modified/Deleted"
+sub mk_info_panel {
+  my $o = shift;
+  my $url = shift;
+
+  my $cu = mk_face($o->{cuser_info});
+  my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{ctime});
+
+  my $panel = "$cu, $ct<br>";
+  if ($o->{prev}){
+    my $mt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{mtime});
+    if ($o->{muser} ne $o->{cuser}){
+      my $mu = mk_face($o->{muser_info});
+      $panel .= "Отредактировано: $mu, $mt";
+    } else {
+      $panel .= "Отредактировано автором: $mt";
+    }
+    $panel .= " - <a href='$url?id=$o->{prev}'>старая версия</a>" if $o->{prev};
+    $panel .= "<br>\n";
+  }
+  if ($o->{next}){
+    $panel .= " Архив - <a href='$url?id=$o->{next}'>исправленная версия</a>\n";
+  }
+  if ($o->{del}){
+    my $dt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{dtime});
+    if ($o->{duser} ne $o->{cuser}) {
+      my $du = mk_face($o->{duser_info});
+      $panel .= " Удалено: $du, $dt<br>\n";
+    } else {
+      $panel .= "Удалено автором: $dt\n";
+    }
+  }
+  return $panel;
 }
 
 1;

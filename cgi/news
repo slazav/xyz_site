@@ -53,77 +53,53 @@ try {
 
   # print one
   if ($pars->{id}) {
-    my $cu = mk_face($o->{cuser_info});
-    my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{ctime});
+
     my $title = cleanup_txt($o->{title});
     my $text  = cleanup_htm($o->{text});
     my $type  = cleanup_txt($o->{type});
 
-    my $btm_panel = '';
-    $btm_panel .= " <i>$cu, $ct</i><br>";
-    if ($o->{prev}){
-      my $mt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{mtime});
-      if ($o->{muser} ne $o->{cuser}){
-        my $mu = mk_face($o->{muser_info});
-        $btm_panel .= "<i>Отредактировано: $mu, $mt</i>";
-      } else {
-        $btm_panel .= "<i>Отредактировано автором: $mt</i>";
-      }
-      $btm_panel .= " - <a href='news?id=$o->{prev}'>старая версия</a>" if $o->{prev};
-      $btm_panel .= "<br>";
-    }
-    if ($o->{next}){
-      $btm_panel .= " <i>Архив</i> - <a href='news?id=$o->{next}'>исправленная версия</a>";
-    }
-    if ($o->{del}){
-      my $dt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{dtime});
-      if ($o->{duser} ne $o->{cuser}) {
-        my $du = mk_face($o->{duser_info});
-        $btm_panel .= " <i>Удалено: $du, $dt</i><br>";
-      } else {
-        $btm_panel .= "<i>Удалено автором: $dt</i>";
-      }
-    }
-
+    my $btm_panel = mk_info_panel($o, 'news');
     $btm_panel .= " <a href='javascript:show(\"news_del_popup\")'>[удалить]</a>" if $o->{can_delete};
     $btm_panel .= " <a href='javascript:on_news_undel($o->{_id})'>[восстановить]</a>" if $o->{can_undel};
     $btm_panel .= " <a href='javascript:show(\"news_popup\")'>[редактировать]</a>" if $o->{can_edit};
-    $btm_panel .= " <i><a href='$o->{origin}'>(источник)</a></i>" if exists $o->{origin};
+    $btm_panel .= " <a href='$o->{origin}'>(источник)</a>" if exists $o->{origin};
 
-    print "<div class='obj_top_panel'>$title</div>\n";
-    print "<p class='news_body'>$text</p>\n";
-    print "<div class='obj_bottom_panel right'>$btm_panel</div>\n";
+    print "<div class='title'>$title</div>\n";
+    print "<div class='obj_body'>$text</p>\n";
+    print "<div class='obj_info right'>$btm_panel</div>\n";
     print "<hr>\n\n";
 
-    # comments
+    # comments (move to html.pm)
+    print "<div class='nav center'>\n",
+          "<a href='javascript:on_com_add(0)'>[новый комментарий]</a></div>\n",
+          "<div id='com0'></div>\n\n";
     foreach my $c (@{$comm}){
       my $m = ($c->{depth} || 0)*20;
-      print "<div class='comment' style='margin-left: $m;'>\n";
+      my $div = "<div class='comment' style='margin-left: $m;'>\n";
 
-      if (($c->{state} || '') eq 'D' && ($c->{children} || 0)){
-        print "<b>(deleted comment)</b>\n";
-        print "<div class='com_bottom_panel'></div>\n";
+      my $st = $c->{state} || '';
+      if ($st eq 'D' && exists $c->{has_children}){
+        print "$div<b>(deleted comment)</b>\n";
         print "</div>\n";
-        next;
       }
-      if (($c->{state} || '') eq 'S' && ($c->{children} || 0)){
-        print "<b>(screened comment)</b>\n";
-        print "<div class='com_bottom_panel'></div>\n";
+      if ($st eq 'S' && exists $c->{has_children}){
+        print "$div<b>(screened comment)</b>\n";
         print "</div>\n";
-        next;
       }
+      next if $st eq 'D' || $st eq 'S';
 
       my $cu = mk_face($c->{cuser_info});
       my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($c->{ctime});
       my $title = cleanup_txt($c->{title});
       my $text  = cleanup_htm($c->{text});
-      print "$cu: <b>$title</b><br>\n";
+      print "$div$cu: <b>$title</b><br>\n";
       print "$text\n";
       my $btm_panel = '';
       $btm_panel .= "$ct";
-      $btm_panel .= " <a href='javascript:show(\"com_popup\")'>[редактировать]</a>" if $c->{can_edit};
+      $btm_panel .= " <a href='javascript:on_com_add($c->{_id})'>[ответить]</a>";
+      $btm_panel .= " <a href='javascript:on_com_edit($c->{_id})'>[редактировать]</a>" if $c->{can_edit};
       $btm_panel .= " <a href='javascript:on_com_delete($c->{_id})'>[удалить]</a>" if $c->{can_delete};
-      print "<div class='com_bottom_panel'>$btm_panel</div>\n";
+      print "<div class='com_info'>$btm_panel</div><div id='com$c->{_id}'></div>\n";
       print "</div>\n";
     }
 
@@ -138,7 +114,7 @@ try {
     my $nav_panel = '';
     $nav_panel.=" Поиск по тексту: <input type=text name=search width=15 value='$search'>";
     $nav_panel.=" <a href='javascript:show(\"news_popup\")'>[новое сообщение]</a>\n";
-    print "<form action='#' class='navigation right'>\n$nav_panel</form>\n";
+    print "<form action='#' class='nav right'>\n$nav_panel</form>\n";
 
     # << >> panel
     my $nav_panel1 = mk_count_nav "news?$ns", $pars->{skip}, $pars->{num}, $count;
@@ -147,7 +123,6 @@ try {
     foreach my $o (@{$objects}) {
       my $cu = mk_face($o->{cuser_info});
       my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
-      $ct = "<i>$ct</i>";
       my $title = cleanup_txt($o->{title});
       my $text  = cleanup_htm($o->{text});
       my $type  = cleanup_txt($o->{type});
@@ -155,15 +130,15 @@ try {
       $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="news?id=$o->{_id}">(подробнее...)</a>|gs;
 
       if ($pars->{titles}){
-        print "<div class='title_panel'>$ct $cu: $title</div>\n";
+        print "<div class='title_list'>$ct $cu: $title</div>\n";
       }
       else {
         $o->{ncomm} = $o->{ncomm} || 0;
         my $com = "<a href='news?id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
 
-        print "<hr><div class='obj_top_panel'>$cu: $title</div>\n";
-        print "<p class='news_body'>$text</p>\n";
-        print "<div class='obj_bottom_panel right'>$ct, $com</div>\n";
+        print "<hr><div class='title_list'>$cu: $title</div>\n";
+        print "<p class='obj_body'>$text</p>\n";
+        print "<div class='obj_info right'>$ct, $com</div>\n";
       }
     }
     print $nav_panel1;
@@ -188,7 +163,7 @@ try {
     <textarea id="text" name="text" placeholder="Текст">$text</textarea>
     <h4>Тип новости:</h4>
     <select name="type">
-      <option>1</option>
+      <option>Приглашение в поход</option>
       <option>2</option>
       <option>3</option>
     </select>

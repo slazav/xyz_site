@@ -187,7 +187,6 @@ function after_news_write(data) {
   location.reload();
 }
 
-
 function on_news_delete(id){
   do_request('news_delete', {id: id, del: 1}, do_reload);
   hide("news_del_popup");
@@ -196,6 +195,13 @@ function on_news_undel(id){
   do_request('news_delete', {id: id, del: 0}, do_reload);
 }
 
+function on_com_add(id){
+}
+function on_com_edit(id){
+}
+function on_com_delete(id){
+  do_request('com_delete', {id: id}, do_reload);
+}
 
 /////////////////////////////////////////////////////////////////
 // working with news

@@ -35,7 +35,7 @@ use HTML::Parser;
 sub cleanup_txt {
   my $inp    = shift || '';
   my $maxlen = shift || 10000;
-  $inp = substr($inp, 0, $maxlen) if $maxlen && length($inp)>$maxlen;
+  $inp = substr($inp, 0, $maxlen) if length($inp)>$maxlen;
   $inp =~ s/</&lt;/g;
   $inp =~ s/>/&gt;/g;
   return $inp;
@@ -49,9 +49,9 @@ sub cleanup_int {
 
 # get html parameter: remove all tags except safe ones
 sub cleanup_htm {
-  my $inp    = shift;
+  my $inp    = shift || '';
   my $maxlen = shift || 10000;
-  $inp = substr($inp, 0, $maxlen) if $maxlen && length($inp)>$maxlen;
+  $inp = substr($inp, 0, $maxlen) if length($inp)>$maxlen;
 
   our $out='';
   our @tags;

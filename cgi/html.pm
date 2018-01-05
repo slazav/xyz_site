@@ -13,6 +13,7 @@ BEGIN {
     %level_names %site_icons
     mk_face print_head print_tail print_error
     mk_count_nav mk_info_panel
+    print_comments
   );
 }
 
@@ -222,6 +223,55 @@ sub mk_info_panel {
     }
   }
   return $panel;
+}
+
+################################################
+# print comments to any object
+# urls:
+#  javascript:com_new_form(coll, oid, pid)
+#  javascript:com_edit_form(id)
+#  javascript:com_del_form(id)
+#
+sub print_comments {
+  my $coll = shift;
+  my $o    = shift;
+  my $comm = shift;
+
+  print "<div class='nav center'>\n",
+        "<a href='javascript:com_new_form(\"$coll\",$o->{_id},0)'>[новый комментарий]</a></div>\n",
+        "<div class='com_form' id='com0'></div>\n\n";
+  foreach my $c (@{$comm}){
+    my $m = ($c->{depth} || 0)*20;
+    my $div = "<div class='comment' style='margin-left: $m;'>\n";
+
+    my $st = $c->{state} || '';
+    if ($st eq 'D' && exists $c->{has_children}){
+      print "$div<div class='com_empty'>(deleted comment)</div>\n";
+      print "</div>\n";
+    }
+    if ($st eq 'S' && exists $c->{has_children}){
+      print "$div<div class='com_empty'>(screened comment)</div>\n";
+      print "</div>\n";
+    }
+    next if $st eq 'D' || $st eq 'S';
+
+    my $cu = mk_face($c->{cuser_info});
+    my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($c->{ctime});
+    my $title = cleanup_txt($c->{title});
+    my $text  = cleanup_htm($c->{text});
+    print "$div$cu: <b>$title</b><br>\n";
+    print "$text\n";
+    my $btm_panel = '';
+    $btm_panel .= "$ct";
+    $btm_panel .= " <a href='javascript:com_new_form(\"$coll\",$o->{_id},$c->{_id})'>[ответить]</a>";
+    $btm_panel .= " <a href='javascript:com_edit_form($c->{_id})'>[редактировать]</a>" if $c->{can_edit};
+    $btm_panel .= " <a href='javascript:com_del_form($c->{_id})'>[удалить]</a>" if $c->{can_delete};
+    print "<div class='com_info'>$btm_panel</div><div class='com_form' id='com$c->{_id}'></div>\n";
+    print "</div>\n";
+  }
+  print "<div class='nav center'>\n",
+        "<a href='javascript:com_new_form(\"$coll\",$o->{_id},-1)'>[новый комментарий]</a></div>\n",
+        "<div class='com_form' id='com-1'></div>\n\n" if $#{$comm}>=0;
 }
 
 1;

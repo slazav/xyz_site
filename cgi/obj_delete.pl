@@ -11,14 +11,17 @@ use site;
 use common;
 use open ':std', ':encoding(UTF-8)';
 
-
 ################################################
 
 try {
-  my $pars = { id=>param('id') || '' };
-  my $o = show_object(undef, 'news', $pars);
+  my $coll  = param('coll')||'news';
+  my $id    = param('id')  || '';
+  my $del   = param('del') || '';
+
+  delete_object(undef, $coll, $id, $del);
+
   print header (-type=>'application/json', -charset=>'utf-8');
-  print JSON->new->canonical()->pretty()->encode($o), "\n";
+  print JSON->new->encode({"ret" => 0}), "\n";
 }
 catch {
   chomp;

@@ -174,35 +174,32 @@ function on_set_level(id,level){
 }
 
 /////////////////////////////////////////////////////////////////
-function on_news_write(){
-  var f = document.getElementById("news_form");
+function on_obj_write(){
+  var f = document.getElementById("obj_form");
   args = {};
-  args.id    = f.id.value;
-  args.title = f.title.value;
-  args.text  = f.text.value;
-  args.type  = f.type.value;
-  do_request('news_write', args, after_news_write);
+  for (i=0; i<f.elements.length; i++){
+    args[f.elements[i].name] = f.elements[i].value; }
+  do_request('obj_write', args, function(data){
+    location.reload();
+    document.getElementById("obj_form").reset();
+  });
 }
-function after_news_write(data) {
-  hide('news_popup');
-  document.getElementById("news_form").reset();
-  location.reload();
+function on_obj_delete(coll, id){
+  do_request('obj_delete', {coll: coll, id: id, del: 1}, do_reload);
+  hide("obj_del_popup");
 }
-function on_news_delete(id){
-  do_request('news_delete', {id: id, del: 1}, do_reload);
-  hide("news_del_popup");
-}
-function on_news_undel(id){
-  do_request('news_delete', {id: id, del: 0}, do_reload);
+function on_obj_undel(coll, id){
+  do_request('obj_delete', {coll: coll, id: id, del: 0}, do_reload);
 }
 /////////////////////////////////////////////////////////////////
-
+// close all new/edit/delete forms for comments
 function close_com_form(){
   var f = document.getElementsByClassName("com_form");
   for (i = 0; i < f.length; i++) { f[i].innerHTML = '';}
 }
 
-function com_new_form(oid, pid){
+// create a new comment form
+function com_new_form(coll, oid, pid){
   close_com_form();
   /* one can use negative pid's to have a few places
      for new top-level comments */
@@ -213,7 +210,7 @@ function com_new_form(oid, pid){
    + "Ответить:<br>"
    + "<input name='parent_id' type='hidden' value='"+ pid +"'>"
    + "<input name='object_id' type='hidden' value='"+ oid +"'>"
-   + "<input name='coll' type='hidden' value='news'>"
+   + "<input name='coll' type='hidden' value='"+coll+"'>"
    + "<input name='title' placeholder='Заголовок' type='text'>"
    + "<textarea name=text placeholder='Текст'></textarea><br>"
    + "<a href='javascript:on_com_new()' >Опубликовать</a>"
@@ -221,13 +218,13 @@ function com_new_form(oid, pid){
    + "</form>";
 }
 
+// create an edit comment form
 function com_edit_form(id){
   close_com_form();
   document.getElementById("com"+id).innerHTML =
      "<form id=com_form action='javascript:on_com_edit()'>"
    + "Редактировать:<br>"
-   + "<input name='id' type='hidden' value='"+ id +"'>"
-   + "<input name='coll' type='hidden' value='news'>"
+   + "<input name='id' type='hidden' value='"+id+"'>"
    + "<input name='title' placeholder='Заголовок' type='text'>"
    + "<textarea name=text placeholder='Текст'></textarea><br>"
    + "<a href='javascript:on_com_edit()' >Опубликовать</a>"
@@ -236,6 +233,15 @@ function com_edit_form(id){
    do_request('com_show', {id: id, nohtm: 1}, fill_com_form);
 }
 
+// Fill edit comment form with data.
+// A callback for com_edit_form()
+function fill_com_form(data){
+  var f = document.getElementById('com_form');
+  f.elements['title'].value = data.title;
+  f.elements['text'].value  = data.text;
+}
+
+// create a delete comment form
 function com_del_form(id){
   close_com_form();
   document.getElementById("com"+id).innerHTML =
@@ -247,12 +253,7 @@ function com_del_form(id){
    + "</form>";
 }
 
-function fill_com_form(data){
-  var f = document.getElementById('com_form');
-  f.elements['title'].value = data.title;
-  f.elements['text'].value  = data.text;
-}
-
+// create new comment
 function on_com_new(){
   var f = document.getElementById('com_form');
   var pars = {};
@@ -264,16 +265,17 @@ function on_com_new(){
   do_request('com_new', pars, do_reload);
 }
 
+// edit a comment
 function on_com_edit(){
   var f = document.getElementById('com_form');
   var pars = {};
   pars.id        = f.elements['id'].value;
   pars.title     = f.elements['title'].value;
   pars.text      = f.elements['text'].value;
-  pars.coll      = f.elements['coll'].value;
   do_request('com_edit', pars, do_reload);
 }
 
+// delete a comment
 function on_com_delete(){
   var f = document.getElementById('com_form');
   var id = f.elements['id'].value;

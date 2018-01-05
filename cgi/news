@@ -30,6 +30,8 @@ try {
   $pars->{titles} = defined param('titles');
   $pars->{search} = decode utf8=>(param('search') || '');
 
+  my $coll = 'news';
+
   ####################
   # open DB, get all information:
   my $db = open_db;
@@ -39,11 +41,11 @@ try {
   my $comm;
   my $count;
   if ($pars->{id}) {
-    $o = show_object($db, 'news', $pars);
-    $comm = list_comments($db, {coll=>'news', id=>$pars->{id}});
+    $o = show_object($db, $coll, $pars);
+    $comm = list_comments($db, {coll=>$coll, id=>$pars->{id}});
   }
   else {
-    ($objects, $count) = list_objects($db, 'news', $pars);
+    ($objects, $count) = list_objects($db, $coll, $pars);
   }
 
 
@@ -58,10 +60,10 @@ try {
     my $text  = cleanup_htm($o->{text});
     my $type  = cleanup_txt($o->{type});
 
-    my $btm_panel = mk_info_panel($o, 'news');
-    $btm_panel .= " <a href='javascript:show(\"news_del_popup\")'>[удалить]</a>" if $o->{can_delete};
-    $btm_panel .= " <a href='javascript:on_news_undel($o->{_id})'>[восстановить]</a>" if $o->{can_undel};
-    $btm_panel .= " <a href='javascript:show(\"news_popup\")'>[редактировать]</a>" if $o->{can_edit};
+    my $btm_panel = mk_info_panel($o, $coll);
+    $btm_panel .= " <a href='javascript:show(\"obj_del_popup\")'>[удалить]</a>" if $o->{can_delete};
+    $btm_panel .= " <a href='javascript:on_obj_undel(\"$coll\",$o->{_id})'>[восстановить]</a>" if $o->{can_undel};
+    $btm_panel .= " <a href='javascript:show(\"obj_popup\")'>[редактировать]</a>" if $o->{can_edit};
     $btm_panel .= " <a href='$o->{origin}'>(источник)</a>" if exists $o->{origin};
 
     print "<div class='title'>$title</div>\n";
@@ -69,43 +71,7 @@ try {
     print "<div class='obj_info right'>$btm_panel</div>\n";
     print "<hr>\n\n";
 
-    # comments (move to html.pm)
-    print "<div class='nav center'>\n",
-          "<a href='javascript:com_new_form($o->{_id},0)'>[новый комментарий]</a></div>\n",
-          "<div class='com_form' id='com0'></div>\n\n";
-    foreach my $c (@{$comm}){
-      my $m = ($c->{depth} || 0)*20;
-      my $div = "<div class='comment' style='margin-left: $m;'>\n";
-
-      my $st = $c->{state} || '';
-      if ($st eq 'D' && exists $c->{has_children}){
-        print "$div<div class='com_empty'>(deleted comment)</div>\n";
-        print "</div>\n";
-      }
-      if ($st eq 'S' && exists $c->{has_children}){
-        print "$div<div class='com_empty'>(screened comment)</div>\n";
-        print "</div>\n";
-      }
-      next if $st eq 'D' || $st eq 'S';
-
-      my $cu = mk_face($c->{cuser_info});
-      my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($c->{ctime});
-      my $title = cleanup_txt($c->{title});
-      my $text  = cleanup_htm($c->{text});
-      print "$div$cu: <b>$title</b><br>\n";
-      print "$text\n";
-      my $btm_panel = '';
-      $btm_panel .= "$ct";
-      $btm_panel .= " <a href='javascript:com_new_form($o->{_id},$c->{_id})'>[ответить]</a>";
-      $btm_panel .= " <a href='javascript:com_edit_form($c->{_id})'>[редактировать]</a>" if $c->{can_edit};
-      $btm_panel .= " <a href='javascript:com_del_form($c->{_id})'>[удалить]</a>" if $c->{can_delete};
-      print "<div class='com_info'>$btm_panel</div><div class='com_form' id='com$c->{_id}'></div>\n";
-      print "</div>\n";
-    }
-    print "<div class='nav center'>\n",
-          "<a href='javascript:com_new_form($o->{_id},-1)'>[новый комментарий]</a></div>\n",
-          "<div class='com_form' id='com-1'></div>\n\n";
-
+    print_comments $coll, $o, $comm;
   }
   # print many
   else {
@@ -116,7 +82,7 @@ try {
     # search/new panel
     my $nav_panel = '';
     $nav_panel.=" Поиск по тексту: <input type=text name=search width=15 value='$search'>";
-    $nav_panel.=" <a href='javascript:show(\"news_popup\")'>[новое сообщение]</a>\n";
+    $nav_panel.=" <a href='javascript:show(\"obj_popup\")'>[новое сообщение]</a>\n";
     print "<form action='#' class='nav right'>\n$nav_panel</form>\n";
 
     # << >> panel
@@ -154,14 +120,15 @@ try {
   my $type  = cleanup_txt($o->{type}  || '');
   print qq*
   <!-- Всплывающий диалог нового сообщения -->
-  <div style="display:none;" id="news_popup" class="fullscreen">
+  <div style="display:none;" id="obj_popup" class="fullscreen">
   <div class="fullscreen shade"></div>
   <!-- div class="i_popup" -->
-  <form action="javascript:on_news_write()" class="popup" id="news_form">
-    <img class="close" src="img/x.png" onclick ="hide('news_popup')">
+  <form action="javascript:on_obj_write()" class="popup" id="obj_form">
+    <img class="close" src="img/x.png" onclick ="hide('obj_popup')">
     <h2>Новое собщение</h2>
     <hr class="wide">
     <input  name="id" type="hidden" value="$id">
+    <input name="coll" type="hidden" value="$coll">
     <input  name="title" placeholder="Заголовок" type="text" value="$title">
     <textarea id="text" name="text" placeholder="Текст">$text</textarea>
     <h4>Тип новости:</h4>
@@ -170,19 +137,20 @@ try {
       <option>2</option>
       <option>3</option>
     </select>
-    <a href="javascript:on_news_write()" class="submit_button">Опубликовать</a>
+    <a href="javascript:on_obj_write()" class="submit_button">Опубликовать</a>
   </form>
   </div></div>
 
   <!-- Всплывающий диалог предупреждения -->
-  <div style="display:none;" id="news_del_popup" class="fullscreen">
+  <div style="display:none;" id="obj_del_popup" class="fullscreen">
   <div class="fullscreen shade"></div>
   <!-- div class="i_popup" -->
-  <form action="#" class="popup" id="news_del_form">
-    <img class="close" src="img/x.png" onclick ="hide('news_del_popup')">
-    <h2>Удалить сообщение?</h2>
+  <form action="#" class="popup" id="obj_del_form">
+    <img class="close" src="img/x.png" onclick ="hide('obj_del_popup')">
+    <h2>Удалить запись?</h2>
     <input name="id" type="hidden" value="$id">
-    <a href="javascript:on_news_delete($id)" class="submit_button">Да</a>
+    <input name="coll" type="hidden" value="$coll">
+    <a href="javascript:on_obj_delete('$coll',$id)" class="submit_button">Да</a>
   </form>
   </div></div>
 

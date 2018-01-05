@@ -9,16 +9,32 @@ use CGI ':standard';
 use JSON;
 use site;
 use common;
+use safe_html;
 use open ':std', ':encoding(UTF-8)';
-
+use Encode;
 
 ################################################
 
 try {
-  my $id   = param('id')  || '';
-  my $del  = param('del') || '';
+  # read collection name
+  my $coll  = param('coll')||'news';
 
-  delete_object(undef, 'news', $id, $del);
+  # start building an object, get _id
+  my $obj;
+  $obj->{_id} = param('id')||'';
+
+  # collection-specific parameters:
+  if ($coll eq 'news') {
+    $obj->{title} = decode utf8=>(param('title')||'');
+    $obj->{text}  = decode utf8=>(param('text')||'');
+    $obj->{type}  = decode utf8=>(param('type')||'');
+  }
+  else {
+    die "uncnown collection: $coll";
+  }
+
+  # write the object
+  write_object undef, $coll, $obj;
 
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->encode({"ret" => 0}), "\n";

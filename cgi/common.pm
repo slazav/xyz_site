@@ -525,7 +525,7 @@ sub delete_comment {
 
   update_ncomm $db, $coll, $oid;
 
-  write_log($obj_log, "DEL $coll COMM: " . JSON->new->canonical()->encode($com) );
+  write_log($obj_log, "DEL COMM: " . JSON->new->canonical()->encode($com) );
   return {"ret" => 0};
 }
 
@@ -565,7 +565,7 @@ sub new_comment {
 
   update_ncomm $db, $com->{coll}, $com->{object_id};
 
-  write_log($obj_log, "NEW $coll COMM: " . JSON->new->canonical()->encode($com) );
+  write_log($obj_log, "NEW COMM: " . JSON->new->canonical()->encode($com) );
   return {"ret" => 0};
 }
 
@@ -583,10 +583,10 @@ sub edit_comment {
   my $ocom = $comments->find_one({'_id' => $com->{_id}+0}, {'text'=>0, 'title'=>0});
     die "can't find parent comment: $com->{_id}" unless $ocom;
 
-  # get object information
-  my $objects = $db->get_collection( $com->{coll} );
+  # get object information (based on old comment!)
+  my $objects = $db->get_collection( $ocom->{coll} );
   my $obj  = $objects->find_one({'_id' => $ocom->{object_id}+0}, {'text'=>0, 'title'=>0});
-  die "can't find object in $com->{coll}: $ocom->{object_id}" unless $obj;
+  die "can't find object in $ocom->{coll}: $ocom->{object_id}" unless $obj;
 
   # check user permissions
   die "permission denied"
@@ -599,7 +599,7 @@ sub edit_comment {
 
   die "Can't put comment into the database" unless $u;
 
-  write_log($obj_log, "EDIT $coll COMM: " . JSON->new->canonical()->encode($com) );
+  write_log($obj_log, "EDIT COMM: " . JSON->new->canonical()->encode($com) );
   return {"ret" => 0};
 }
 

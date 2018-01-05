@@ -19,7 +19,6 @@ try {
   $com->{_id}       = param('id') || 0;
   $com->{title}     = decode utf8=>param('title') || '';
   $com->{text}      = decode utf8=>param('text')  || '';
-  $com->{coll}      = param('coll')  || 'news';
 
   edit_comment(undef, $com);
 

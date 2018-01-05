@@ -15,11 +15,12 @@ use Encode;
 ################################################
 
 try {
+  my $coll  = param('coll')||'news';
   my $pars = { skip   => param('skip') || 0,
                num    => param('num') || 20,
                search => decode(utf8=>(param('search') || '')),
              };
-  my ($res, $count) = list_objects(undef, 'news', $pars);
+  my ($res, $count) = list_objects(undef, $coll, $pars);
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->pretty()->encode($res), "\n";
 }

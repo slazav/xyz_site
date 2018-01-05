@@ -127,6 +127,7 @@ try {
     <img class="close" src="img/x.png" onclick ="hide('obj_popup')">
     <h2>Новое собщение</h2>
     <hr class="wide">
+    <input  name="busy" type="hidden" value="0">
     <input  name="id" type="hidden" value="$id">
     <input name="coll" type="hidden" value="$coll">
     <input  name="title" placeholder="Заголовок" type="text" value="$title">
@@ -148,9 +149,11 @@ try {
   <form action="#" class="popup" id="obj_del_form">
     <img class="close" src="img/x.png" onclick ="hide('obj_del_popup')">
     <h2>Удалить запись?</h2>
+    <input  name="busy" type="hidden" value="0">
     <input name="id" type="hidden" value="$id">
+    <input name="del" type="hidden" value="1">
     <input name="coll" type="hidden" value="$coll">
-    <a href="javascript:on_obj_delete('$coll',$id)" class="submit_button">Да</a>
+    <a href="javascript:on_obj_delete()" class="submit_button">Да</a>
   </form>
   </div></div>
 

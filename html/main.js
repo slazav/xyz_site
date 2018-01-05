@@ -173,20 +173,36 @@ function on_set_level(id,level){
   do_request('set_level', {id: id, level: level}, do_reload);
 }
 
+
 /////////////////////////////////////////////////////////////////
-function on_obj_write(){
-  var f = document.getElementById("obj_form");
+// if form is already submited?
+function form_busy(f){
+  if (f.elements['busy'].value == 1) {return true;}
+  f.elements['busy'].value = 1;
+  return false;
+}
+
+function form_to_args(f){
   args = {};
   for (i=0; i<f.elements.length; i++){
     args[f.elements[i].name] = f.elements[i].value; }
-  do_request('obj_write', args, function(data){
-    location.reload();
-    document.getElementById("obj_form").reset();
-  });
+  return args;
 }
-function on_obj_delete(coll, id){
-  do_request('obj_delete', {coll: coll, id: id, del: 1}, do_reload);
+
+/////////////////////////////////////////////////////////////////
+function on_obj_write(){
+  var f = document.getElementById("obj_form");
+  if (form_busy(f)) {return;}
+  do_request('obj_write', form_to_args(f), do_reload);
+  hide("obj_popup");
+  f.reset();
+}
+function on_obj_delete(){
+  var f = document.getElementById("obj_del_form");
+  if (form_busy(f)) {return;}
+  do_request('obj_delete', form_to_args(f), do_reload);
   hide("obj_del_popup");
+  f.reset();
 }
 function on_obj_undel(coll, id){
   do_request('obj_delete', {coll: coll, id: id, del: 0}, do_reload);
@@ -208,6 +224,7 @@ function com_new_form(coll, oid, pid){
   document.getElementById(fid).innerHTML =
      "<form id=com_form action='javascript:on_com_new()'>"
    + "Ответить:<br>"
+   + "<input name='busy' type='hidden' value='0'>"
    + "<input name='parent_id' type='hidden' value='"+ pid +"'>"
    + "<input name='object_id' type='hidden' value='"+ oid +"'>"
    + "<input name='coll' type='hidden' value='"+coll+"'>"
@@ -225,6 +242,7 @@ function com_edit_form(id){
      "<form id=com_form action='javascript:on_com_edit()'>"
    + "Редактировать:<br>"
    + "<input name='id' type='hidden' value='"+id+"'>"
+   + "<input name='busy' type='hidden' value='0'>"
    + "<input name='title' placeholder='Заголовок' type='text'>"
    + "<textarea name=text placeholder='Текст'></textarea><br>"
    + "<a href='javascript:on_com_edit()' >Опубликовать</a>"
@@ -247,39 +265,33 @@ function com_del_form(id){
   document.getElementById("com"+id).innerHTML =
      "<form id=com_form action='javascript:on_com_delete()'>"
    + "<input name='id' type='hidden' value='"+ id +"'>"
+   + "<input name='busy' type='hidden' value='0'>"
    + "Удалить комментарий?"
    + "<a href='javascript:on_com_delete()' >Да</a>"
    + "<a href='javascript:close_com_form()'>Нет</a>"
    + "</form>";
 }
 
+
 // create new comment
 function on_com_new(){
   var f = document.getElementById('com_form');
-  var pars = {};
-  pars.parent_id = f.elements['parent_id'].value;
-  pars.object_id = f.elements['object_id'].value;
-  pars.title     = f.elements['title'].value;
-  pars.text      = f.elements['text'].value;
-  pars.coll      = f.elements['coll'].value;
-  do_request('com_new', pars, do_reload);
+  if (form_busy(f)) {return;}
+  do_request('com_new', form_to_args(f), do_reload);
 }
 
 // edit a comment
 function on_com_edit(){
   var f = document.getElementById('com_form');
-  var pars = {};
-  pars.id        = f.elements['id'].value;
-  pars.title     = f.elements['title'].value;
-  pars.text      = f.elements['text'].value;
-  do_request('com_edit', pars, do_reload);
+  if (form_busy(f)) {return;}
+  do_request('com_edit', form_to_args(f), do_reload);
 }
 
 // delete a comment
 function on_com_delete(){
   var f = document.getElementById('com_form');
-  var id = f.elements['id'].value;
-  do_request('com_delete', {id: id}, do_reload);
+  if (form_busy(f)) {return;}
+  do_request('com_delete', form_to_args(f), do_reload);
 }
 
 /////////////////////////////////////////////////////////////////

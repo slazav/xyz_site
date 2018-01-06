@@ -35,7 +35,7 @@ try {
   ####################
   # open DB, get all information:
   my $db = open_db;
-  my $u  = get_my_info($db);
+  my $me  = get_my_info($db);
   my $objects;
   my $o;
   my $comm;
@@ -51,7 +51,7 @@ try {
 
   ####################
   # Print everything:
-  print_head($u);
+  print_head($me);
 
   # print one
   if ($pars->{id}) {
@@ -60,16 +60,10 @@ try {
     my $text  = cleanup_htm($o->{text});
     my $type  = cleanup_txt($o->{type});
 
-    my $btm_panel = mk_info_panel($o, $coll);
-    $btm_panel .= " <a href='javascript:show(\"obj_del_popup\")'>[удалить]</a>" if $o->{can_delete};
-    $btm_panel .= " <a href='javascript:on_obj_undel(\"$coll\",$o->{_id})'>[восстановить]</a>" if $o->{can_undel};
-    $btm_panel .= " <a href='javascript:show(\"obj_popup\")'>[редактировать]</a>" if $o->{can_edit};
-    $btm_panel .= " <a href='$o->{origin}'>(источник)</a>" if exists $o->{origin};
-
     print "<div class='title'>$title</div>\n";
     print "<div class='obj_body'>$text</p>\n";
-    print "<div class='obj_info right'>$btm_panel</div>\n";
-    print "<hr>\n\n";
+    print_info_panel($o, 'news?');
+    print "<hr>\n";
 
     print_comments $coll, $o, $comm;
   }
@@ -82,7 +76,7 @@ try {
     # search/new panel
     my $nav_panel = '';
     $nav_panel.=" Поиск по тексту: <input type=text name=search width=15 value='$search'>";
-    $nav_panel.=" <a href='javascript:show(\"obj_popup\")'>[новое сообщение]</a>\n";
+    $nav_panel.=" <a href='javascript:show(\"obj_popup\")'>[новое сообщение]</a>\n" if check_perm($coll, 'create', $me);
     print "<form action='#' class='nav right'>\n$nav_panel</form>\n";
 
     # << >> panel

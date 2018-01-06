@@ -12,7 +12,8 @@ BEGIN {
   our @EXPORT = qw(
     %level_names %site_icons
     mk_face print_head print_tail print_error
-    mk_count_nav mk_info_panel
+    mk_count_nav
+    print_info_panel
     print_comments
   );
 }
@@ -191,7 +192,7 @@ sub mk_count_nav {
 
 ################################################
 # object bottom panel "Created/Modified/Deleted"
-sub mk_info_panel {
+sub print_info_panel {
   my $o = shift;
   my $url = shift;
 
@@ -207,11 +208,11 @@ sub mk_info_panel {
     } else {
       $panel .= "Отредактировано автором: $mt";
     }
-    $panel .= " - <a href='$url?id=$o->{prev}'>старая версия</a>" if $o->{prev};
+    $panel .= " - <a href='${url}id=$o->{prev}'>старая версия</a>" if $o->{prev};
     $panel .= "<br>\n";
   }
   if ($o->{next}){
-    $panel .= " Архив - <a href='$url?id=$o->{next}'>исправленная версия</a>\n";
+    $panel .= " Архив - <a href='${url}id=$o->{next}'>исправленная версия</a>\n";
   }
   if ($o->{del}){
     my $dt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{dtime});
@@ -222,7 +223,12 @@ sub mk_info_panel {
       $panel .= "Удалено автором: $dt\n";
     }
   }
-  return $panel;
+  $panel .= " <a href='javascript:show(\"obj_del_popup\")'>[удалить]</a>" if $o->{can_delete};
+  $panel .= " <a href='javascript:on_obj_undel(\"$coll\",$o->{_id})'>[восстановить]</a>" if $o->{can_undel};
+  $panel .= " <a href='javascript:show(\"obj_popup\")'>[редактировать]</a>" if $o->{can_edit};
+  $panel .= " <a href='$o->{origin}'>(источник)</a>" if exists $o->{origin};
+
+  print "<div class='obj_info right'>$panel</div>\n";
 }
 
 ################################################

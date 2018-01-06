@@ -13,6 +13,7 @@ BEGIN {
                    $usr_log $obj_log
                    write_log get_session open_db next_id
                    get_my_info set_user_level user_list
+                   check_perm
                    write_object delete_object show_object list_objects
                    list_comments show_comment delete_comment new_comment edit_comment
                   );
@@ -179,16 +180,17 @@ sub check_perm {
   my $object = shift;
   my $comment = shift;
 
-  my $myobject = $object->{cuser} eq $user->{_id};
-  my $mylvl = $user->{level};
+  my $mylvl = $user->{level} || $LEVEL_ANON;
   if ($coll eq 'news') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
+    my $myobject = $object->{cuser} eq $user->{_id};
     return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$object->{del} && !$object->{next};
     return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{next};
     return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'pcat' || $coll eq 'geo') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
+    my $myobject = $object->{cuser} eq $user->{_id};
     return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_NORM)  && !$object->{del} && !$object->{next};
     return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{next};
     return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
@@ -197,6 +199,7 @@ sub check_perm {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
     my $mycomment = $comment->{cuser} eq $user->{_id};
     return 1 if $action eq 'edit'   && ($mycomment);
+    my $myobject = $object->{cuser} eq $user->{_id};
     return 1 if $action eq 'delete' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER);
   }
   return 0;

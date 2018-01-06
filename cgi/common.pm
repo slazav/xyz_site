@@ -15,7 +15,7 @@ BEGIN {
                    get_my_info set_user_level user_list
                    check_perm
                    write_object delete_object show_object list_objects
-                   list_comments show_comment delete_comment new_comment edit_comment
+                   list_comments show_comment delete_comment screen_comment new_comment edit_comment
                   );
 }
 
@@ -184,23 +184,31 @@ sub check_perm {
   if ($coll eq 'news') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
     my $myobject = $object->{cuser} eq $user->{_id};
-    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$object->{del} && !$object->{next};
-    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{next};
-    return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
+    my $del = $object->{del};
+    my $arc = $object->{next};
+    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$del && !$arc;
+    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$del && !$arc;
+    return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $del;
   }
   if ($coll eq 'pcat' || $coll eq 'geo') {
+    my $del = $object->{del};
+    my $arc = $object->{next};
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
     my $myobject = $object->{cuser} eq $user->{_id};
-    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_NORM)  && !$object->{del} && !$object->{next};
-    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$object->{del} && !$object->{next};
-    return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
+    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_NORM)  && !$del && !$arc;
+    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$del && !$arc;
+    return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $del;
   }
   if ($coll eq 'comm') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_ANON);
     my $mycomment = $comment->{cuser} eq $user->{_id};
-    return 1 if $action eq 'edit'   && ($mycomment);
+    my $st = $comment->{state} || '';
+    return 1 if $action eq 'answer'   && ($mylvl >= $LEVEL_ANON) && !$st;
+    return 1 if $action eq 'edit'   && ($mycomment) && !$st;
     my $myobject = $object->{cuser} eq $user->{_id};
-    return 1 if $action eq 'delete' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER);
+    return 1 if $action eq 'screen'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$st;
+    return 1 if $action eq 'unscreen' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && ($st eq 'S');
+    return 1 if $action eq 'delete'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$st;
   }
   return 0;
 }
@@ -397,7 +405,6 @@ sub list_objects{
 # add additional fields for list_comments
 sub comment_expand {
   my $db   = shift; # database
-  my $coll = shift; # collection name
   my $me   = shift; # user
   my $o    = shift;
   my $c    = shift;
@@ -409,6 +416,15 @@ sub comment_expand {
 
   $c->{can_edit}   = 1 if check_perm('comm', 'edit',   $me, $o, $c);
   $c->{can_delete} = 1 if check_perm('comm', 'delete', $me, $o, $c);
+  $c->{can_screen} = 1 if check_perm('comm', 'screen', $me, $o, $c);
+  $c->{can_unscreen} = 1 if check_perm('comm', 'unscreen', $me, $o, $c);
+  $c->{can_answer}   = 1 if check_perm('comm', 'answer',   $me, $o, $c);
+
+  # screen comment which user can not see
+  if (($c->{state}||'') eq 'S' && !$c->{can_unscreen}){
+    delete $c->{title};
+    delete $c->{text};
+  }
 }
 
 ############################################################
@@ -433,7 +449,7 @@ sub list_comments {
   # sort comments to have the tree
   my $children;
   while ( my $next = $query_result->next ) {
-    comment_expand($db, $pars->{coll}, $me, $obj, $next);
+    comment_expand($db, $me, $obj, $next);
     push @{$children->{$next->{parent_id} || 0}}, $next;
   }
 
@@ -472,12 +488,27 @@ sub show_comment {
   my $db = shift || open_db(); # database
   my $id = shift;
 
-  # get all comments
-  my $comments = $db->get_collection( 'comm' );
-  my $ret = $comments->find_one({'_id' => $id+0});
-  die "can't find comment: $id" unless $ret;
 
-  return $ret;
+  # get user information
+  my $me = get_my_info($db);
+
+  # get comment information
+  my $comments = $db->get_collection( 'comm' );
+  my $com = $comments->find_one({'_id' => $id+0});
+  die "can't find comment: $id" unless $com;
+
+  my $oid   = $com->{object_id};
+  my $coll  = $com->{coll};
+  my $state = $com->{state} || '';
+
+  # get object information
+  my $objects = $db->get_collection( $coll );
+  my $obj  = $objects->find_one({'_id' => $oid+0}, {'text'=>0, 'title'=>0});
+  die "can't find object in $coll: $oid" unless $obj;
+
+  comment_expand($db, $me, $obj, $com);
+
+  return $com;
 }
 
 ############################################################
@@ -531,6 +562,54 @@ sub delete_comment {
   write_log($obj_log, "DEL COMM: " . JSON->new->canonical()->encode($com) );
   return {"ret" => 0};
 }
+
+############################################################
+# Screen/unscreen a comment
+sub screen_comment {
+  my $db = shift || open_db(); # database
+  my $id = shift;
+
+  # get user information
+  my $me = get_my_info($db);
+
+  # get comment information
+  my $comments = $db->get_collection( 'comm' );
+  my $com = $comments->find_one({'_id' => $id+0}, {'text'=>0, 'title'=>0});
+  die "can't find comment: $id" unless ($com);
+
+  my $oid   = $com->{object_id};
+  my $coll  = $com->{coll};
+  my $state = $com->{state} || '';
+
+  # get object information
+  my $objects = $db->get_collection( $coll );
+  my $obj  = $objects->find_one({'_id' => $oid+0}, {'text'=>0, 'title'=>0});
+  die "can't find object in $coll: $oid" unless ($obj);
+
+  # check user permissions
+  # screen/unscreen the comment
+  my $upd;
+  if ($state eq 'S') {
+    die "permission denied"
+      unless check_perm('comm', 'unscreen', $me, $obj, $com);
+    $upd = {'$unset' => {'state'=>''}};
+  }
+  elsif ($state eq '') {
+    die "permission denied"
+      unless check_perm('comm', 'screen', $me, $obj, $com);
+    $upd = {'$set' => {'state'=>'S'}};
+  }
+  else {die "Wrong comment state: $state";}
+
+  my $u = $comments->find_one_and_update({'_id' => $id+0}, $upd);
+  die "Can't write a comment" unless $u;
+
+  update_ncomm $db, $coll, $oid;
+
+  write_log($obj_log, "DEL COMM: " . JSON->new->canonical()->encode($com) );
+  return {"ret" => 0};
+}
+
 
 ############################################################
 # New comment

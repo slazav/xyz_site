@@ -348,6 +348,9 @@ form.popup {
   padding: 5px;
   margin-top: 5px;
 }
+.screened {
+  opacity: 0.5;
+}
 .nav {
   font-size: large;
 }
@@ -355,7 +358,6 @@ form.popup {
   font-size: large;
   text-decoration:none;
 }
-
 
 .center { text-align: center; }
 .left   { text-align: left; }

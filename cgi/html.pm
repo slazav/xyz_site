@@ -250,6 +250,7 @@ sub print_comments {
   print "<div class='nav center'>\n",
         "<a href='javascript:com_new_form(\"$coll\",$o->{_id},0)'>[новый комментарий]</a></div>\n",
         "<div class='com_form' id='com0'></div>\n\n" if $can_create;
+
   foreach my $c (@{$comm}){
     my $m = ($c->{depth} || 0)*20;
     my $div = "<div class='comment' style='margin-left: $m;'>\n";
@@ -259,11 +260,12 @@ sub print_comments {
       print "$div<div class='com_empty'>(deleted comment)</div>\n";
       print "</div>\n";
     }
-    if ($st eq 'S' && exists $c->{has_children}){
+    if ($st eq 'S' && exists $c->{has_children} && !exists $c->{can_unscreen}){
       print "$div<div class='com_empty'>(screened comment)</div>\n";
       print "</div>\n";
     }
-    next if $st eq 'D' || $st eq 'S';
+    next if $st eq 'D' || ($st eq 'S' && !exists $c->{can_unscreen});
+    $div =~ s/comment/comment screened/ if $st eq 'S';
 
     my $cu = mk_face($c->{cuser_info});
     my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($c->{ctime});
@@ -273,9 +275,11 @@ sub print_comments {
     print "$text\n";
     my $btm_panel = '';
     $btm_panel .= "$ct";
-    $btm_panel .= " <a href='javascript:com_new_form(\"$coll\",$o->{_id},$c->{_id})'>[ответить]</a>" if $can_create;
+    $btm_panel .= " <a href='javascript:com_new_form(\"$coll\",$o->{_id},$c->{_id})'>[ответить]</a>" if $c->{can_answer};
     $btm_panel .= " <a href='javascript:com_edit_form($c->{_id})'>[редактировать]</a>" if $c->{can_edit};
     $btm_panel .= " <a href='javascript:com_del_form($c->{_id})'>[удалить]</a>" if $c->{can_delete};
+    $btm_panel .= " <a href='javascript:com_scr($c->{_id})'>[скрыть]</a>" if $c->{can_screen};
+    $btm_panel .= " <a href='javascript:com_scr($c->{_id})'>[открыть]</a>" if $c->{can_unscreen};
     print "<div class='com_info'>$btm_panel</div><div class='com_form' id='com$c->{_id}'></div>\n";
     print "</div>\n";
   }

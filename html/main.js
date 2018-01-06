@@ -294,6 +294,11 @@ function on_com_delete(){
   do_request('com_delete', form_to_args(f), do_reload);
 }
 
+// screen/unscreen a comment
+function com_scr(id){
+  do_request('com_screen', {id: id}, do_reload);
+}
+
 /////////////////////////////////////////////////////////////////
 
 function show(id) { document.getElementById(id).style.display = "block"; }

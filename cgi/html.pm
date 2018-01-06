@@ -3,6 +3,7 @@ use site;
 use CGI ':standard';
 use POSIX qw(strftime);
 use safe_html;
+use common;
 use utf8;
 
 BEGIN {
@@ -242,10 +243,13 @@ sub print_comments {
   my $coll = shift;
   my $o    = shift;
   my $comm = shift;
+  my $me   = shift;
+
+  my $can_create = check_perm 'comm', 'create', $me;
 
   print "<div class='nav center'>\n",
         "<a href='javascript:com_new_form(\"$coll\",$o->{_id},0)'>[новый комментарий]</a></div>\n",
-        "<div class='com_form' id='com0'></div>\n\n";
+        "<div class='com_form' id='com0'></div>\n\n" if $can_create;
   foreach my $c (@{$comm}){
     my $m = ($c->{depth} || 0)*20;
     my $div = "<div class='comment' style='margin-left: $m;'>\n";
@@ -269,7 +273,7 @@ sub print_comments {
     print "$text\n";
     my $btm_panel = '';
     $btm_panel .= "$ct";
-    $btm_panel .= " <a href='javascript:com_new_form(\"$coll\",$o->{_id},$c->{_id})'>[ответить]</a>";
+    $btm_panel .= " <a href='javascript:com_new_form(\"$coll\",$o->{_id},$c->{_id})'>[ответить]</a>" if $can_create;
     $btm_panel .= " <a href='javascript:com_edit_form($c->{_id})'>[редактировать]</a>" if $c->{can_edit};
     $btm_panel .= " <a href='javascript:com_del_form($c->{_id})'>[удалить]</a>" if $c->{can_delete};
     print "<div class='com_info'>$btm_panel</div><div class='com_form' id='com$c->{_id}'></div>\n";
@@ -277,7 +281,7 @@ sub print_comments {
   }
   print "<div class='nav center'>\n",
         "<a href='javascript:com_new_form(\"$coll\",$o->{_id},-1)'>[новый комментарий]</a></div>\n",
-        "<div class='com_form' id='com-1'></div>\n\n" if $#{$comm}>=0;
+        "<div class='com_form' id='com-1'></div>\n\n" if $#{$comm}>=0 && $can_create;
 }
 
 1;

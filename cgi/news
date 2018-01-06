@@ -65,7 +65,7 @@ try {
     print_info_panel($o, 'news?');
     print "<hr>\n";
 
-    print_comments $coll, $o, $comm;
+    print_comments $coll, $o, $comm, $me;
   }
   # print many
   else {

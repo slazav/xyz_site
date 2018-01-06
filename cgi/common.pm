@@ -196,7 +196,7 @@ sub check_perm {
     return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $object->{del};
   }
   if ($coll eq 'comm') {
-    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
+    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_ANON);
     my $mycomment = $comment->{cuser} eq $user->{_id};
     return 1 if $action eq 'edit'   && ($mycomment);
     my $myobject = $object->{cuser} eq $user->{_id};
@@ -558,7 +558,7 @@ sub new_comment {
     unless check_perm('comm', 'create', $me, $obj);
 
   $com->{_id}       = next_id($db, 'comm')+0;
-  $com->{cuser}     = $me->{_id};
+  $com->{cuser}     = $me->{_id} || 'anonymous';
   $com->{ctime}     = time;
   delete $com->{state};
 

@@ -255,17 +255,16 @@ sub print_comments {
     my $m = ($c->{depth} || 0)*20;
     my $div = "<div class='comment' style='margin-left: $m;'>\n";
 
-    my $st = $c->{state} || '';
-    if ($st eq 'D' && exists $c->{has_children}){
+    if ($c->{del} && exists $c->{has_children}){
       print "$div<div class='com_empty'>(deleted comment)</div>\n";
       print "</div>\n";
     }
-    if ($st eq 'S' && exists $c->{has_children} && !exists $c->{can_unscreen}){
+    if ($c->{scr} && exists $c->{has_children} && !exists $c->{can_unscreen}){
       print "$div<div class='com_empty'>(screened comment)</div>\n";
       print "</div>\n";
     }
-    next if $st eq 'D' || ($st eq 'S' && !exists $c->{can_unscreen});
-    $div =~ s/comment/comment screened/ if $st eq 'S';
+    next if $c->{del} || ($c->{scr} && !exists $c->{can_unscreen});
+    $div =~ s/comment/comment screened/ if $c->{scr};
 
     my $cu = mk_face($c->{cuser_info});
     my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($c->{ctime});

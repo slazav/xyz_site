@@ -202,13 +202,12 @@ sub check_perm {
   if ($coll eq 'comm') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_ANON);
     my $mycomment = $comment->{cuser} eq $user->{_id};
-    my $st = $comment->{state} || '';
-    return 1 if $action eq 'answer'   && ($mylvl >= $LEVEL_ANON) && !$st;
-    return 1 if $action eq 'edit'   && ($mycomment) && !$st;
+    return 1 if $action eq 'answer'   && ($mylvl >= $LEVEL_ANON) && !$c->{del} && !$c->{scr};
+    return 1 if $action eq 'edit'     && ($mycomment) && !$c->{del} && !$c->{scr};
     my $myobject = $object->{cuser} eq $user->{_id};
-    return 1 if $action eq 'screen'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$st;
-    return 1 if $action eq 'unscreen' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && ($st eq 'S');
-    return 1 if $action eq 'delete'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$st;
+    return 1 if $action eq 'screen'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$c->{del} && !$c->{scr};
+    return 1 if $action eq 'unscreen' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && $c->{scr};
+    return 1 if $action eq 'delete'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$c->{del} && !$c->{scr};
   }
   return 0;
 }
@@ -421,7 +420,7 @@ sub comment_expand {
   $c->{can_answer}   = 1 if check_perm('comm', 'answer',   $me, $o, $c);
 
   # screen comment which user can not see
-  if (($c->{state}||'') eq 'S' && !$c->{can_unscreen}){
+  if ($c->{scr} && !$c->{can_unscreen}){
     delete $c->{title};
     delete $c->{text};
   }
@@ -474,8 +473,8 @@ sub list_comments {
   my $f = 0;
   foreach my $c (reverse @{$ret}){
     $f=0 if ($c->{depth}||0) >= $d; # step up
-    $c->{has_children}=1 if $f && exists $c->{state};
-    $f=1 if !exists $c->{state};
+    $c->{has_children}=1 if $f && ($c->{scr} || $c->{del});
+    $f=1 if !$c->{del} && !$c->{scr};
     $d = $c->{depth}||0;
   }
 
@@ -499,7 +498,6 @@ sub show_comment {
 
   my $oid   = $com->{object_id};
   my $coll  = $com->{coll};
-  my $state = $com->{state} || '';
 
   # get object information
   my $objects = $db->get_collection( $coll );
@@ -521,7 +519,8 @@ sub update_ncomm {
   my $comments = $db->get_collection( 'comm' );
   die "Can't connect to a database" unless $objects || $comments;
 
-  my $count = $comments->count({'coll' => $coll, 'object_id' => $id+0, 'state' => {'$exists'=>0}});
+  my $count = $comments->count({'coll' => $coll, 'object_id' => $id+0,
+                                'del' => {'$exists'=>0}, 'scr' => {'$exists'=>0}});
   my $u = $objects->find_one_and_update({'_id' => $id+0}, {'$set'=>{'ncomm'=>$count}});
   die "Can't update ncomm" unless $u;
 }
@@ -553,7 +552,7 @@ sub delete_comment {
     unless check_perm('comm', 'delete', $me, $obj, $com);
 
   # delete comment
-  my $upd = {'$unset' => {'title' => '', 'text' => ''}, '$set' => {'state', 'D'}};
+  my $upd = {'$unset' => {'title' => '', 'text' => '', 'scr' => ''}, '$set' => {'del' => 1}};
   my $u = $comments->find_one_and_update({'_id' => $id+0}, $upd);
   die "Can't write a comment" unless $u;
 
@@ -579,7 +578,6 @@ sub screen_comment {
 
   my $oid   = $com->{object_id};
   my $coll  = $com->{coll};
-  my $state = $com->{state} || '';
 
   # get object information
   my $objects = $db->get_collection( $coll );
@@ -589,17 +587,17 @@ sub screen_comment {
   # check user permissions
   # screen/unscreen the comment
   my $upd;
-  if ($state eq 'S') {
+  if ($com->{scr}) {
     die "permission denied"
       unless check_perm('comm', 'unscreen', $me, $obj, $com);
-    $upd = {'$unset' => {'state'=>''}};
+    $upd = {'$unset' => {'scr'=>''}};
   }
-  elsif ($state eq '') {
+  elsif (!$com->{scr} && !$com->{del}) {
     die "permission denied"
       unless check_perm('comm', 'screen', $me, $obj, $com);
-    $upd = {'$set' => {'state'=>'S'}};
+    $upd = {'$set' => {'scr'=>1}};
   }
-  else {die "Wrong comment state: $state";}
+  else {die "Can't screen or unscreen deleted comment";}
 
   my $u = $comments->find_one_and_update({'_id' => $id+0}, $upd);
   die "Can't write a comment" unless $u;
@@ -639,7 +637,8 @@ sub new_comment {
   $com->{_id}       = next_id($db, 'comm')+0;
   $com->{cuser}     = $me->{_id} || 'anonymous';
   $com->{ctime}     = time;
-  delete $com->{state};
+  delete $com->{scr};
+  delete $com->{del};
 
   my $res = $comments->insert_one($com);
   die "Can't put comment into the database"

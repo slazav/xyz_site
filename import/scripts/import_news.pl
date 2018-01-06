@@ -24,7 +24,7 @@ sub add_user{
   my $uid  = shift;
   my $name = shift;
   my $site = shift;
-  my $time = shift;
+  my $time = shift || 0;
 
   # try to find user, add one if it does not exists
   my $users = $db->get_collection( 'users' );
@@ -33,9 +33,9 @@ sub add_user{
     print ">>>> Add user $uid: $name \@ $site\n";
     my $res = $users->insert_one({
       '_id'   => $uid,
-      'level'=> $LEVEL_NORM,
-      'mtime'=> $time,
-      'ctime'=> $time,
+      'level'=> $LEVEL_NORM+0,
+      'mtime'=> $time+0,
+      'ctime'=> $time+0,
       'name' => $name,
       'site' => $site,
       'info' => '',
@@ -78,7 +78,7 @@ foreach (sort @names) {
   $obj->{cuser}  = 'https://' . $name . '.livejournal.com';
   $obj->{ctime}  = $entry->{event_timestamp} + 0; # convert string to num
   $obj->{origin} = $entry->{url};
-  $obj->{ncomm}  = $entry->{reply_count};
+  $obj->{ncomm}  = $entry->{reply_count}+0;
 
   # external users
   $obj->{cuser} = $entry->{identity_url} if $entry->{identity_url};
@@ -130,14 +130,15 @@ foreach (sort @names) {
     my $name = $c->{user} || '';
     my $site = $c->{user}? 'lj':'';
 
-    $com->{_id}    = next_id($db, 'comm');
+    $com->{_id}    = next_id($db, 'comm')+0;
     $ids{$c->{id}} = $com->{_id};
-    $com->{title}  = $c->{subject} if exists $c->{subject};;
+    $com->{title}  = $c->{subject} if exists $c->{subject};
     $com->{text}   = $c->{body}    if exists $c->{body};
     $com->{cuser}  = $name? 'https://' . $name . '.livejournal.com': 'anonymous';
     $com->{ctime}  = $c->{ctime}   if exists $c->{ctime};
     $com->{coll}   = 'news';
-    $com->{state}  = $c->{state}   if exists $c->{state};
+    $com->{scr}    = 1 if ($c->{state} || '') eq 'S';
+    $com->{del}    = 1 if ($c->{state} || '') eq 'D';
     $com->{object_id} = $obj->{_id};
     $com->{parent_id} = $ids{$c->{parentid}} if $c->{parentid};
 

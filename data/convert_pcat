@@ -113,13 +113,19 @@ foreach my $e (@entries){
   while ($e->{text} && $e->{text} =~ s|^геоданные:\s+\(\((\S+)\s+(.*?)\)\)$||m) {
     push @{$e->{refs}}, {url=>$1, text=>"геоданные: $2"};
   }
+
+  if ($e->{text}){
+    $e->{text} =~ s|\(\((\S+)\s+(.*?)\)\)|<a href="$1">$2</a>|g;
+  }
+
   if ($e->{text}) { $e->{text} =~ s|\n+|\n|;}
   if ($e->{text} && $e->{text}=~/^\s+$/) {delete $e->{text};}
+
 
 #  if ($e->{text} && $e->{text} =~ /http/) {print STDERR "Href in text: $e->{text}\n";}
 
   # rivers
-  if ($e->{tags}=~/vodn/) {$e->{rivers} = $e->{title};}
+#  if ($e->{tags}=~/vodn/) {$e->{rivers} = $e->{title};}
 
   # tags
   my $tags = $e->{tags};

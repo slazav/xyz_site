@@ -20,6 +20,9 @@ use Encode;
 
 ################################################
 
+my $coll = 'pcat';
+my $baseurl = 'pcat?';
+
 try {
   ####################
   # get parameters:
@@ -30,45 +33,27 @@ try {
   $pars->{titles} = defined param('titles');
   $pars->{search} = decode utf8=>(param('search') || '');
 
-  my $coll = 'pcat';
-  my $baseurl = 'pcat?';
-
-  ####################
-  # open DB, get all information:
-  my $db = open_db;
-  my $me  = get_my_info($db);
-  my $objects;
-  my $o;
-  my $comm;
-  my $count;
-  if ($pars->{id}) {
-    $o = show_object($db, $coll, $pars);
-    $comm = list_comments($db, $pars->{id}, $coll);
-  }
-  else {
-    ($objects, $count) = list_objects($db, $coll, $pars);
-  }
-
+  my $data = show_object(undef, $coll, $pars);
 
   ####################
   # Print everything:
-  print_head($me);
+  print_head($data->{me});
 
   # print one
   if ($pars->{id}) {
 
-    my $title = cleanup_txt($o->{title});
-    my $text  = cleanup_htm($o->{text});
-    my $type  = cleanup_txt($o->{type});
+    my $title = cleanup_txt($data->{object}->{title});
+    my $text  = cleanup_htm($data->{object}->{text});
+    my $type  = cleanup_txt($data->{object}->{type});
 
     print "<div class='title'>$title</div>\n";
     print "<div class='obj_body'>$text</p>\n";
 
-    print_refs $o;
-    print_info_panel($o, $baseurl);
+    print_refs $data->{object};
+    print_info_panel($data->{object}, $baseurl);
     print "<hr>\n";
 
-    print_comments $coll, $o, $comm, $me;
+    print_comments $coll, $data->{object}, $data->{comments}, $data->{me};
   }
   # print many
   else {
@@ -79,14 +64,14 @@ try {
     # search/new panel
     my $nav_panel = '';
     $nav_panel.=" Поиск по тексту: <input type=text name=search width=15 value='$search'>";
-    $nav_panel.=" <a href='javascript:show(\"obj_popup\")'>[новое сообщение]</a>\n" if check_perm($coll, 'create', $me);
+    $nav_panel.=" <a href='javascript:show(\"obj_popup\")'>[новое сообщение]</a>\n" if check_perm($coll, 'create', $data->{me});
     print "<form action='#' class='nav right'>\n$nav_panel</form>\n";
 
     # << >> panel
-    my $nav_panel1 = mk_count_nav "${baseurl}$ns", $pars->{skip}, $pars->{num}, $count;
+    my $nav_panel1 = mk_count_nav "${baseurl}$ns", $data->{skip}, $data->{num}, $data->{count};
     print $nav_panel1;
 
-    foreach my $o (@{$objects}) {
+    foreach my $o (@{$data->{objects}}) {
       my $cu = mk_face($o->{cuser_info});
       my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
       my $title = cleanup_txt($o->{title});
@@ -111,10 +96,10 @@ try {
 
   }
 
-  my $id    = cleanup_int($o->{_id}   || '');
-  my $title = cleanup_txt($o->{title} || '');
-  my $text  = cleanup_txt($o->{text}  || '');
-  my $type  = cleanup_txt($o->{type}  || '');
+  my $id    = cleanup_int($data->{object}->{_id}   || '');
+  my $title = cleanup_txt($data->{object}->{title} || '');
+  my $text  = cleanup_txt($data->{object}->{text}  || '');
+  my $type  = cleanup_txt($data->{object}->{type}  || '');
   print qq*
   <!-- Всплывающий диалог нового сообщения -->
   <div style="display:none;" id="obj_popup" class="fullscreen">

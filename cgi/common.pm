@@ -14,8 +14,8 @@ BEGIN {
                    write_log get_session open_db next_id
                    get_my_info set_user_level user_list
                    check_perm
-                   write_object delete_object show_object list_objects
                    list_comments show_comment delete_comment screen_comment new_comment edit_comment
+                   write_object delete_object show_object
                   );
 }
 
@@ -214,193 +214,6 @@ sub check_perm {
   return 0;
 }
 
-############################################################
-sub write_object{
-  my $db   = shift || open_db(); # database
-  my $coll = shift; # object collection
-  my $obj  = shift; # object to write (including _id)
-
-  my $u = get_my_info($db);
-  die "Unknown user" unless $u;
-
-  my $id  = $obj->{_id} + 0;
-  # set muser/mtime fields
-  $obj->{muser} = $u->{_id};
-  $obj->{mtime} = time;
-  # user can't set these fields directly:
-  delete $obj->{del};
-  delete $obj->{prev};
-  delete $obj->{ncomm};
-  delete $obj->{next};
-
-  # open object collection, get old object information (if change of existing id is needed)
-  my $objects = $db->get_collection( $coll );
-
-  if ( $id ){
-    # modification of existing object is needed
-
-    # check if object exists
-    my $o = $objects->find_one({'_id'=>$id});
-    die "can't find object: $id" unless $o;
-
-    # check user permissions
-    die "permission denied"
-      unless check_perm($coll, 'edit', $u, $o);
-
-    # save old information:
-    $o->{_id}   = next_id($db, "$coll");
-    $o->{next}  = $id;
-    # save archive object
-    my $res = $objects->insert_one($o);
-    die "can't put an object into archive"
-      unless $res->acknowledged;
-
-    write_log($obj_log, "ARC $coll: " . JSON->new->canonical()->encode($o) );
-
-    # transfer some fields from old object to the new one:
-    $obj->{ctime} = $o->{ctime};
-    $obj->{cuser} = $o->{cuser};
-    $obj->{ncomm} = $o->{ncomm};
-    $obj->{prev}  = $res->inserted_id;
-
-    # update object
-    $res = $objects->replace_one({'_id' => $id}, $obj);
-    die "Can't write an object"
-      unless $res->acknowledged;
-
-    write_log($obj_log, "MOD $coll: " . JSON->new->canonical()->encode($obj) );
-  }
-  else {
-    $obj->{_id}   = next_id($db, $coll);
-    $obj->{ctime} = $obj->{mtime};
-    $obj->{cuser} = $obj->{muser};
-
-    # check user permissions
-    die "permission denied"
-      unless check_perm($coll, 'create', $u, {});
-
-    # create new object
-    my $res = $objects->insert_one($obj);
-    die "Can't put object into the database"
-      unless $res->acknowledged;
-
-    write_log($obj_log, "NEW $coll: " . JSON->new->canonical()->encode($obj) );
-  }
-  return {"ret" => 0};
-}
-
-############################################################
-sub delete_object{
-  my $db   = shift || open_db(); # database
-  my $coll = shift; # object collection
-  my $id   = shift; # object to delete (_id)
-  my $del  = shift; # delete/undelete (1 or 0)
-
-  my $u = get_my_info($db);
-  die "Unknown user" unless $u;
-  die "id is empty" unless ($id);
-  $id+=0; # convert to int!
-  die "del parameter should be 0 or 1" unless ($del==1 || $del==0);
-
-  # open object collection, get old object information
-  my $objects = $db->get_collection( $coll );
-
-  my $obj = $objects->find_one({'_id'=>$id});
-  die "can't find object: $id" unless $obj;
-
-  # check user permissions
-  die "permission denied"
-    unless check_perm($coll, $del?'delete':'undel', $u, $obj);
-
-  my $upd = {'$set' => {'dtime' => time, 'duser' => $u->{_id}}};
-  if ($del) {$upd->{'$set'}->{del} = 1;}
-  else {$upd->{'$unset'}->{del} = 1;}
-
-  $u = $objects->find_one_and_update({'_id' => $id}, $upd);
-  die "Can't write an object" unless $u;
-
-  write_log($obj_log, "DEL $coll: " . JSON->new->canonical()->encode($obj) );
-  return {"ret" => 0};
-}
-
-############################################################
-# add additional fields for show_object and list_objects
-sub object_expand {
-  my $db   = shift; # database
-  my $coll = shift; # collection name
-  my $me   = shift; # user
-  my $o    = shift;
-  my $users = $db->get_collection('users');
-
-  # build human-readable user information
-  my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
-  $o->{cuser_info} = $users->find_one({'_id'=>$o->{cuser}}, $pr);
-
-  if ($o->{muser}) {
-    if ($o->{muser} eq $o->{cuser}){ $o->{muser_info} = $o->{cuser_info}; }
-    else { $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr); }
-  }
-
-  if ($o->{duser}) {
-    if    ($o->{duser} eq $o->{cuser}){ $o->{duser_info} = $o->{cuser_info}; }
-    elsif ($o->{duser} eq $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
-    else { $o->{duser_info} = $users->find_one({'_id'=>$o->{duser}}, $pr); }
-  }
-  $o->{can_edit}   = 1 if check_perm($coll, 'edit',   $me, $o);
-  $o->{can_delete} = 1 if check_perm($coll, 'delete', $me, $o);
-  $o->{can_undel}  = 1 if check_perm($coll, 'undel',  $me, $o);
-}
-
-############################################################
-# Show a single object.
-# ARC/DEL objects are shown
-sub show_object{
-  my $db   = shift || open_db(); # database
-  my $coll = shift; # object collection
-  my $pars  = shift; # id
-
-  die "id is empty" unless ($pars->{id});
-  my $me = get_my_info($db);
-
-  # open object collection, get object information
-  my $objects = $db->get_collection( $coll );
-  my $ret = $objects->find_one({'_id' => $pars->{id} + 0});
-
-  object_expand($db, $coll, $me, $ret);
-
-  die "can't find object $id in the database $coll" unless $ret;
-  return $ret;
-}
-
-############################################################
-# List objects.
-# ARC/DEL objects are skipped
-sub list_objects{
-  my $db   = shift || open_db(); # database
-  my $coll = shift; # object collection
-  my $pars = shift;
-
-  my $me = get_my_info($db);
-
-  my $q = { 'del' => { '$exists' => 0 }, 'next' => { '$exists' => 0 } };
-  $q->{'$text'} = {'$search' => $pars->{search}} if $pars->{search};
-
-  # open object collection, get object information
-  my $objects = $db->get_collection( $coll );
-  my $query_result = $objects->find($q, {
-      'limit'=>$pars->{num}||25,
-      'skip'=>$pars->{skip}||0,
-      'sort'=>{'_id', -1}
-    })->result;
-  my $count = $objects->count($q);
-
-  my $ret=[];
-  while ( my $next = $query_result->next ) {
-    object_expand($db, $coll, $me, $next);
-    push @{$ret}, $next;
-  }
-  return $ret, $count;
-}
 
 ############################################################
 # add additional fields for list_comments
@@ -433,10 +246,8 @@ sub comment_expand {
 sub list_comments {
   my $db   = shift || open_db(); # database
   my $id   = shift;
-  my $coll  = shift;
-
-  # get user information
-  my $me = get_my_info($db);
+  my $coll = shift;
+  my $me   = shift || get_my_info($db);
 
   # get object information
   my $objects = $db->get_collection( $coll );
@@ -689,4 +500,184 @@ sub edit_comment {
 }
 
 ############################################################
+sub write_object{
+  my $db   = shift || open_db(); # database
+  my $coll = shift; # object collection
+  my $obj  = shift; # object to write (including _id)
+
+  my $u = get_my_info($db);
+  die "Unknown user" unless $u;
+
+  my $id  = $obj->{_id} + 0;
+  # set muser/mtime fields
+  $obj->{muser} = $u->{_id};
+  $obj->{mtime} = time;
+  # user can't set these fields directly:
+  delete $obj->{del};
+  delete $obj->{prev};
+  delete $obj->{ncomm};
+  delete $obj->{next};
+
+  # open object collection, get old object information (if change of existing id is needed)
+  my $objects = $db->get_collection( $coll );
+
+  if ( $id ){
+    # modification of existing object is needed
+
+    # check if object exists
+    my $o = $objects->find_one({'_id'=>$id});
+    die "can't find object: $id" unless $o;
+
+    # check user permissions
+    die "permission denied"
+      unless check_perm($coll, 'edit', $u, $o);
+
+    # save old information:
+    $o->{_id}   = next_id($db, "$coll");
+    $o->{next}  = $id;
+    # save archive object
+    my $res = $objects->insert_one($o);
+    die "can't put an object into archive"
+      unless $res->acknowledged;
+
+    write_log($obj_log, "ARC $coll: " . JSON->new->canonical()->encode($o) );
+
+    # transfer some fields from old object to the new one:
+    $obj->{ctime} = $o->{ctime};
+    $obj->{cuser} = $o->{cuser};
+    $obj->{ncomm} = $o->{ncomm};
+    $obj->{prev}  = $res->inserted_id;
+
+    # update object
+    $res = $objects->replace_one({'_id' => $id}, $obj);
+    die "Can't write an object"
+      unless $res->acknowledged;
+
+    write_log($obj_log, "MOD $coll: " . JSON->new->canonical()->encode($obj) );
+  }
+  else {
+    $obj->{_id}   = next_id($db, $coll);
+    $obj->{ctime} = $obj->{mtime};
+    $obj->{cuser} = $obj->{muser};
+
+    # check user permissions
+    die "permission denied"
+      unless check_perm($coll, 'create', $u, {});
+
+    # create new object
+    my $res = $objects->insert_one($obj);
+    die "Can't put object into the database"
+      unless $res->acknowledged;
+
+    write_log($obj_log, "NEW $coll: " . JSON->new->canonical()->encode($obj) );
+  }
+  return {"ret" => 0};
+}
+
+############################################################
+sub delete_object{
+  my $db   = shift || open_db(); # database
+  my $coll = shift; # object collection
+  my $id   = shift; # object to delete (_id)
+  my $del  = shift; # delete/undelete (1 or 0)
+
+  my $u = get_my_info($db);
+  die "Unknown user" unless $u;
+  die "id is empty" unless ($id);
+  $id+=0; # convert to int!
+  die "del parameter should be 0 or 1" unless ($del==1 || $del==0);
+
+  # open object collection, get old object information
+  my $objects = $db->get_collection( $coll );
+
+  my $obj = $objects->find_one({'_id'=>$id});
+  die "can't find object: $id" unless $obj;
+
+  # check user permissions
+  die "permission denied"
+    unless check_perm($coll, $del?'delete':'undel', $u, $obj);
+
+  my $upd = {'$set' => {'dtime' => time, 'duser' => $u->{_id}}};
+  if ($del) {$upd->{'$set'}->{del} = 1;}
+  else {$upd->{'$unset'}->{del} = 1;}
+
+  $u = $objects->find_one_and_update({'_id' => $id}, $upd);
+  die "Can't write an object" unless $u;
+
+  write_log($obj_log, "DEL $coll: " . JSON->new->canonical()->encode($obj) );
+  return {"ret" => 0};
+}
+
+############################################################
+# add additional fields for show_object and list_objects
+sub object_expand {
+  my $db   = shift; # database
+  my $coll = shift; # collection name
+  my $me   = shift; # user
+  my $o    = shift;
+  my $users = $db->get_collection('users');
+
+  # build human-readable user information
+  my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
+  $o->{cuser_info} = $users->find_one({'_id'=>$o->{cuser}}, $pr);
+
+  if ($o->{muser}) {
+    if ($o->{muser} eq $o->{cuser}){ $o->{muser_info} = $o->{cuser_info}; }
+    else { $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr); }
+  }
+
+  if ($o->{duser}) {
+    if    ($o->{duser} eq $o->{cuser}){ $o->{duser_info} = $o->{cuser_info}; }
+    elsif ($o->{duser} eq $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
+    else { $o->{duser_info} = $users->find_one({'_id'=>$o->{duser}}, $pr); }
+  }
+  $o->{can_edit}   = 1 if check_perm($coll, 'edit',   $me, $o);
+  $o->{can_delete} = 1 if check_perm($coll, 'delete', $me, $o);
+  $o->{can_undel}  = 1 if check_perm($coll, 'undel',  $me, $o);
+}
+
+############################################################
+# Show a single object.
+# ARC/DEL objects are shown
+sub show_object{
+  my $db   = shift || open_db(); # database
+  my $coll = shift; # object collection
+  my $pars  = shift; # id, skip, num, search
+
+  my $ret;
+  $ret->{me} = get_my_info($db);
+  my $objects = $db->get_collection( $coll );
+
+  # single object with comments
+  if ($pars->{id}) {
+    $ret->{object} = $objects->find_one({'_id' => $pars->{id} + 0});
+    die "can't find object $id in the database $coll" unless $ret->{object};
+    object_expand($db, $coll, $ret->{me}, $ret->{object});
+    $ret->{comments} = list_comments $db, $pars->{id}, $coll, $ret->{me}
+      if $ret->{object}->{ncomm};
+  }
+  # object list
+  else {
+    $ret->{objects} = [];
+    $ret->{num} = $pars->{num}||25;
+    $ret->{skip} = $pars->{skip}||0;
+    $ret->{search} = $pars->{search} if $pars->{search};
+    my $q = { 'del' => { '$exists' => 0 }, 'next' => { '$exists' => 0 } };
+    $q->{'$text'} = {'$search' => $pars->{search}} if $pars->{search};
+    my $query_result = $objects->find($q, {
+        'limit'=>$ret->{num},
+        'skip'=>$ret->{skip},
+        'sort'=>{'_id', -1}
+      })->result;
+    $ret->{count} = $objects->count($q);
+    while ( my $next = $query_result->next ) {
+      object_expand($db, $coll, $ret->{me}, $next);
+      push @{$ret->{objects}}, $next;
+    }
+  }
+  return $ret;
+}
+
+############################################################
+
 1;

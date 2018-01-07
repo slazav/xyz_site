@@ -15,7 +15,7 @@ use open ':std', ':encoding(UTF-8)';
 ################################################
 
 try {
-  delete_comment(undef, param('id') || 0);
+  delete_comment(undef, param('id') || 0, param('coll') || 'news');
 
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->encode({"ret" => 0}), "\n";

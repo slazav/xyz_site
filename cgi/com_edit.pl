@@ -15,12 +15,13 @@ use Encode;
 ################################################
 
 try {
-  my $com = {};
-  $com->{_id}       = param('id') || 0;
-  $com->{title}     = decode utf8=>param('title') || '';
-  $com->{text}      = decode utf8=>param('text')  || '';
+  my $com = {
+   _id   => param('id') || 0,
+   title => decode(utf8=>param('title') || ''),
+   text  => decode(utf8=>param('text')  || ''),
+  };
 
-  edit_comment(undef, $com);
+  edit_comment(undef, $com, param('coll') || 0);
 
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->encode({"ret" => 0}), "\n";

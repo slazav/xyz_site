@@ -42,7 +42,7 @@ try {
   my $count;
   if ($pars->{id}) {
     $o = show_object($db, $coll, $pars);
-    $comm = list_comments($db, {coll=>$coll, id=>$pars->{id}});
+    $comm = list_comments($db, $pars->{id}, $coll);
   }
   else {
     ($objects, $count) = list_objects($db, $coll, $pars);

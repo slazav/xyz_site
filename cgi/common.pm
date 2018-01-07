@@ -432,19 +432,20 @@ sub comment_expand {
 # List comments.
 sub list_comments {
   my $db   = shift || open_db(); # database
-  my $pars  = shift; # (id, coll)
+  my $id   = shift;
+  my $coll  = shift;
 
   # get user information
   my $me = get_my_info($db);
 
   # get object information
-  my $objects = $db->get_collection( $pars->{coll} );
-  my $obj  = $objects->find_one({'_id' => $pars->{id}+0}, {'text'=>0, 'title'=>0});
-  die "can't find object in $pars->{coll}: $pars->{id}" unless ($obj);
+  my $objects = $db->get_collection( $coll );
+  my $obj  = $objects->find_one({'_id' => $id+0}, {'text'=>0, 'title'=>0});
+  die "can't find object in $coll: $id" unless ($obj);
 
   # get all comments
-  my $comm = $db->get_collection( 'comm' );
-  my $q = { 'coll' => $pars->{coll}, 'object_id' => $pars->{id}+0 };
+  my $comm = $db->get_collection( "$coll:comm" );
+  my $q = { 'object_id' => $id+0 };
   my $query_result = $comm->find($q, { 'sort'=>{'_id', 1} })->result;
 
   # sort comments to have the tree
@@ -487,19 +488,18 @@ sub list_comments {
 # Show comment.
 sub show_comment {
   my $db = shift || open_db(); # database
-  my $id = shift;
-
+  my $id   = shift;
+  my $coll = shift;
 
   # get user information
   my $me = get_my_info($db);
 
   # get comment information
-  my $comments = $db->get_collection( 'comm' );
+  my $comments = $db->get_collection( "$coll:comm" );
   my $com = $comments->find_one({'_id' => $id+0});
   die "can't find comment: $id" unless $com;
 
   my $oid   = $com->{object_id};
-  my $coll  = $com->{coll};
 
   # get object information
   my $objects = $db->get_collection( $coll );
@@ -518,7 +518,7 @@ sub update_ncomm {
   my $coll = shift;
   my $id   = shift;
   my $objects  = $db->get_collection( $coll );
-  my $comments = $db->get_collection( 'comm' );
+  my $comments = $db->get_collection( "$coll:comm" );
   die "Can't connect to a database" unless $objects || $comments;
 
   my $count = $comments->count({'coll' => $coll, 'object_id' => $id+0,
@@ -532,17 +532,17 @@ sub update_ncomm {
 sub delete_comment {
   my $db = shift || open_db(); # database
   my $id = shift;
+  my $coll = shift;
 
   # get user information
   my $me = get_my_info($db);
 
   # get comment information
-  my $comments = $db->get_collection( 'comm' );
+  my $comments = $db->get_collection( "$coll:comm" );
   my $com = $comments->find_one({'_id' => $id+0}, {'text'=>0, 'title'=>0});
   die "can't find comment: $id" unless ($com);
 
   my $oid  = $com->{object_id};
-  my $coll = $com->{coll};
 
   # get object information
   my $objects = $db->get_collection( $coll );
@@ -569,17 +569,17 @@ sub delete_comment {
 sub screen_comment {
   my $db = shift || open_db(); # database
   my $id = shift;
+  my $coll = shift;
 
   # get user information
   my $me = get_my_info($db);
 
   # get comment information
-  my $comments = $db->get_collection( 'comm' );
+  my $comments = $db->get_collection( "$coll:comm" );
   my $com = $comments->find_one({'_id' => $id+0}, {'text'=>0, 'title'=>0});
   die "can't find comment: $id" unless ($com);
 
   my $oid   = $com->{object_id};
-  my $coll  = $com->{coll};
 
   # get object information
   my $objects = $db->get_collection( $coll );
@@ -616,17 +616,18 @@ sub screen_comment {
 sub new_comment {
   my $db = shift || open_db(); # database
   my $com = shift;
+  my $coll = shift;
 
   # get user information
   my $me = get_my_info($db);
 
   # get object information
-  my $objects = $db->get_collection( $com->{coll} );
+  my $objects = $db->get_collection( $coll );
   my $obj  = $objects->find_one({'_id' => $com->{object_id}+0}, {'text'=>0, 'title'=>0});
-  die "can't find object in $com->{coll}: $com->{object_id}" unless $obj;
+  die "can't find object in $coll: $com->{object_id}" unless $obj;
 
   # check parent comment
-  my $comments = $db->get_collection( 'comm' );
+  my $comments = $db->get_collection( "$coll:comm" );
   if ($com->{parent_id}) {
     my $pcom = $comments->find_one({'_id' => $com->{parent_id}+0}, {'text'=>0, 'title'=>0});
     die "can't find parent comment: $com->{parent_id}" unless $pcom;
@@ -636,7 +637,7 @@ sub new_comment {
   die "permission denied"
     unless check_perm('comm', 'create', $me, $obj);
 
-  $com->{_id}       = next_id($db, 'comm')+0;
+  $com->{_id}       = next_id($db, "$coll:comm")+0;
   $com->{cuser}     = $me->{_id} || 'anonymous';
   $com->{ctime}     = time;
   delete $com->{scr};
@@ -646,7 +647,7 @@ sub new_comment {
   die "Can't put comment into the database"
     unless $res->acknowledged;
 
-  update_ncomm $db, $com->{coll}, $com->{object_id};
+  update_ncomm $db, $coll, $com->{object_id};
 
   write_log($obj_log, "NEW COMM: " . JSON->new->canonical()->encode($com) );
   return {"ret" => 0};
@@ -657,19 +658,20 @@ sub new_comment {
 sub edit_comment {
   my $db = shift || open_db(); # database
   my $com = shift;
+  my $coll = shift;
 
   # get user information
   my $me = get_my_info($db);
 
   # get the comment
-  my $comments = $db->get_collection( 'comm' );
+  my $comments = $db->get_collection( "$coll:comm" );
   my $ocom = $comments->find_one({'_id' => $com->{_id}+0}, {'text'=>0, 'title'=>0});
     die "can't find parent comment: $com->{_id}" unless $ocom;
 
   # get object information (based on old comment!)
-  my $objects = $db->get_collection( $ocom->{coll} );
+  my $objects = $db->get_collection( $coll );
   my $obj  = $objects->find_one({'_id' => $ocom->{object_id}+0}, {'text'=>0, 'title'=>0});
-  die "can't find object in $ocom->{coll}: $ocom->{object_id}" unless $obj;
+  die "can't find object in $coll: $ocom->{object_id}" unless $obj;
 
   # check user permissions
   die "permission denied"

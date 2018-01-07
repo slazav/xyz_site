@@ -236,13 +236,14 @@ function com_new_form(coll, oid, pid){
 }
 
 // create an edit comment form
-function com_edit_form(id){
+function com_edit_form(coll, id){
   close_com_form();
   document.getElementById("com"+id).innerHTML =
      "<form id=com_form action='javascript:on_com_edit()'>"
    + "Редактировать:<br>"
    + "<input name='id' type='hidden' value='"+id+"'>"
    + "<input name='busy' type='hidden' value='0'>"
+   + "<input name='coll' type='hidden' value='"+coll+"'>"
    + "<input name='title' placeholder='Заголовок' type='text'>"
    + "<textarea name=text placeholder='Текст'></textarea><br>"
    + "<a href='javascript:on_com_edit()' >Опубликовать</a>"
@@ -260,12 +261,13 @@ function fill_com_form(data){
 }
 
 // create a delete comment form
-function com_del_form(id){
+function com_del_form(coll, id){
   close_com_form();
   document.getElementById("com"+id).innerHTML =
      "<form id=com_form action='javascript:on_com_delete()'>"
    + "<input name='id' type='hidden' value='"+ id +"'>"
    + "<input name='busy' type='hidden' value='0'>"
+   + "<input name='coll' type='hidden' value='"+coll+"'>"
    + "Удалить комментарий?"
    + "<a href='javascript:on_com_delete()' >Да</a>"
    + "<a href='javascript:close_com_form()'>Нет</a>"
@@ -295,8 +297,8 @@ function on_com_delete(){
 }
 
 // screen/unscreen a comment
-function com_scr(id){
-  do_request('com_screen', {id: id}, do_reload);
+function com_scr(coll, id){
+  do_request('com_screen', {id: id, coll: coll}, do_reload);
 }
 
 /////////////////////////////////////////////////////////////////

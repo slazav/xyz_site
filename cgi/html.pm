@@ -236,8 +236,8 @@ sub print_info_panel {
 # print comments to any object
 # urls:
 #  javascript:com_new_form(coll, oid, pid)
-#  javascript:com_edit_form(id)
-#  javascript:com_del_form(id)
+#  javascript:com_edit_form(coll, id)
+#  javascript:com_del_form(coll, id)
 #
 sub print_comments {
   my $coll = shift;
@@ -275,10 +275,10 @@ sub print_comments {
     my $btm_panel = '';
     $btm_panel .= "$ct";
     $btm_panel .= " <a href='javascript:com_new_form(\"$coll\",$o->{_id},$c->{_id})'>[ответить]</a>" if $c->{can_answer};
-    $btm_panel .= " <a href='javascript:com_edit_form($c->{_id})'>[редактировать]</a>" if $c->{can_edit};
-    $btm_panel .= " <a href='javascript:com_del_form($c->{_id})'>[удалить]</a>" if $c->{can_delete};
-    $btm_panel .= " <a href='javascript:com_scr($c->{_id})'>[скрыть]</a>" if $c->{can_screen};
-    $btm_panel .= " <a href='javascript:com_scr($c->{_id})'>[открыть]</a>" if $c->{can_unscreen};
+    $btm_panel .= " <a href='javascript:com_edit_form(\"$coll\",$c->{_id})'>[редактировать]</a>" if $c->{can_edit};
+    $btm_panel .= " <a href='javascript:com_del_form(\"$coll\",$c->{_id})'>[удалить]</a>" if $c->{can_delete};
+    $btm_panel .= " <a href='javascript:com_scr(\"$coll\",$c->{_id})'>[скрыть]</a>" if $c->{can_screen};
+    $btm_panel .= " <a href='javascript:com_scr(\"$coll\",$c->{_id})'>[открыть]</a>" if $c->{can_unscreen};
     print "<div class='com_info'>$btm_panel</div><div class='com_form' id='com$c->{_id}'></div>\n";
     print "</div>\n";
   }

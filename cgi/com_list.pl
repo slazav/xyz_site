@@ -15,9 +15,7 @@ use Encode;
 ################################################
 
 try {
-  my $pars = {id   => param('id') || 0,
-              coll => param('coll') || 'news'};
-  my $res = list_comments(undef, $pars);
+  my $res = list_comments(undef, param('id') || 0, param('coll') || 'news');
   print header (-type=>'application/json', -charset=>'utf-8');
   print JSON->new->canonical()->pretty()->encode($res), "\n";
 }

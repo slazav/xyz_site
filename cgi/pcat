@@ -7,18 +7,159 @@
 use strict;
 use warnings;
 use Try::Tiny;
+use CGI ':standard';
+use POSIX qw(strftime);
+use JSON;
+use site;
 use common;
+use safe_html;
 use html;
 use utf8;
 use open ':std', ':encoding(UTF-8)';
+use Encode;
+
+################################################
 
 try {
-  my $db = open_db;
-  my $u  = get_my_info($db);
+  ####################
+  # get parameters:
+  my $pars;
+  $pars->{id}   = param('id') || '';
+  $pars->{num}  = param('num') || 20;
+  $pars->{skip} = param('skip') || 0;
+  $pars->{titles} = defined param('titles');
+  $pars->{search} = decode utf8=>(param('search') || '');
 
-  print_head($u);
-  print "<h3>Тут должен быть каталог походов</h3>\n";
+  my $coll = 'pcat';
+  my $baseurl = 'pcat?';
+
+  ####################
+  # open DB, get all information:
+  my $db = open_db;
+  my $me  = get_my_info($db);
+  my $objects;
+  my $o;
+  my $comm;
+  my $count;
+  if ($pars->{id}) {
+    $o = show_object($db, $coll, $pars);
+    $comm = list_comments($db, $pars->{id}, $coll);
+  }
+  else {
+    ($objects, $count) = list_objects($db, $coll, $pars);
+  }
+
+
+  ####################
+  # Print everything:
+  print_head($me);
+
+  # print one
+  if ($pars->{id}) {
+
+    my $title = cleanup_txt($o->{title});
+    my $text  = cleanup_htm($o->{text});
+    my $type  = cleanup_txt($o->{type});
+
+    print "<div class='title'>$title</div>\n";
+    print "<div class='obj_body'>$text</p>\n";
+
+    print_refs $o;
+    print_info_panel($o, $baseurl);
+    print "<hr>\n";
+
+    print_comments $coll, $o, $comm, $me;
+  }
+  # print many
+  else {
+    # protect search value
+    my $search = cleanup_txt($pars->{search}); $search =~ s/\'//g;
+    my $ns = $pars->{search}? "search=$pars->{search}&":"";
+
+    # search/new panel
+    my $nav_panel = '';
+    $nav_panel.=" Поиск по тексту: <input type=text name=search width=15 value='$search'>";
+    $nav_panel.=" <a href='javascript:show(\"obj_popup\")'>[новое сообщение]</a>\n" if check_perm($coll, 'create', $me);
+    print "<form action='#' class='nav right'>\n$nav_panel</form>\n";
+
+    # << >> panel
+    my $nav_panel1 = mk_count_nav "${baseurl}$ns", $pars->{skip}, $pars->{num}, $count;
+    print $nav_panel1;
+
+    foreach my $o (@{$objects}) {
+      my $cu = mk_face($o->{cuser_info});
+      my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
+      my $title = cleanup_txt($o->{title});
+      my $text  = cleanup_htm($o->{text});
+      my $type  = cleanup_txt($o->{type});
+      $title = "<a href='${baseurl}id=$o->{_id}'>$title</a>";
+      $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="${baseurl}id=$o->{_id}">(подробнее...)</a>|gs;
+
+      if ($pars->{titles}){
+        print "<div class='title_list'>$ct $cu: $title</div>\n";
+      }
+      else {
+        $o->{ncomm} = $o->{ncomm} || 0;
+        my $com = "<a href='${baseurl}id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
+        print "<hr><div class='title_list'>$cu: $title</div>\n";
+        print "<p class='obj_body'>$text</p>\n";
+        print_refs $o;
+        print "<div class='obj_info right'>$ct, $com</div>\n";
+      }
+    }
+    print $nav_panel1;
+
+  }
+
+  my $id    = cleanup_int($o->{_id}   || '');
+  my $title = cleanup_txt($o->{title} || '');
+  my $text  = cleanup_txt($o->{text}  || '');
+  my $type  = cleanup_txt($o->{type}  || '');
+  print qq*
+  <!-- Всплывающий диалог нового сообщения -->
+  <div style="display:none;" id="obj_popup" class="fullscreen">
+  <div class="fullscreen shade"></div>
+  <!-- div class="i_popup" -->
+  <form action="javascript:on_obj_write()" class="popup" id="obj_form">
+    <img class="close" src="img/x.png" onclick ="hide('obj_popup')">
+    <h2>Новое собщение</h2>
+    <hr class="wide">
+    <input  name="busy" type="hidden" value="0">
+    <input  name="id" type="hidden" value="$id">
+    <input name="coll" type="hidden" value="$coll">
+    <input  name="title" placeholder="Заголовок" type="text" value="$title">
+    <textarea id="text" name="text" placeholder="Текст">$text</textarea>
+    <a href="javascript:on_obj_write()" class="submit_button">Опубликовать</a>
+  </form>
+  </div></div>
+
+  <!-- Всплывающий диалог предупреждения -->
+  <div style="display:none;" id="obj_del_popup" class="fullscreen">
+  <div class="fullscreen shade"></div>
+  <!-- div class="i_popup" -->
+  <form action="#" class="popup" id="obj_del_form">
+    <img class="close" src="img/x.png" onclick ="hide('obj_del_popup')">
+    <h2>Удалить запись?</h2>
+    <input  name="busy" type="hidden" value="0">
+    <input name="id" type="hidden" value="$id">
+    <input name="del" type="hidden" value="1">
+    <input name="coll" type="hidden" value="$coll">
+    <a href="javascript:on_obj_delete()" class="submit_button">Да</a>
+  </form>
+  </div></div>
+
+*;
+
+#    <h4>Тип новости:</h4>
+#    <select name="type">
+#      <option>Приглашение в поход</option>
+#      <option>2</option>
+#      <option>3</option>
+#    </select>
+
   print_tail();
+
+################################################
 }
 catch {
   print_error($_, 'html');

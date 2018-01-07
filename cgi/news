@@ -31,6 +31,7 @@ try {
   $pars->{search} = decode utf8=>(param('search') || '');
 
   my $coll = 'news';
+  my $baseurl = 'news?';
 
   ####################
   # open DB, get all information:
@@ -62,7 +63,7 @@ try {
 
     print "<div class='title'>$title</div>\n";
     print "<div class='obj_body'>$text</p>\n";
-    print_info_panel($o, 'news?');
+    print_info_panel($o, $baseurl);
     print "<hr>\n";
 
     print_comments $coll, $o, $comm, $me;
@@ -80,7 +81,7 @@ try {
     print "<form action='#' class='nav right'>\n$nav_panel</form>\n";
 
     # << >> panel
-    my $nav_panel1 = mk_count_nav "news?$ns", $pars->{skip}, $pars->{num}, $count;
+    my $nav_panel1 = mk_count_nav "$baseurl$ns", $pars->{skip}, $pars->{num}, $count;
     print $nav_panel1;
 
     foreach my $o (@{$objects}) {
@@ -89,15 +90,15 @@ try {
       my $title = cleanup_txt($o->{title});
       my $text  = cleanup_htm($o->{text});
       my $type  = cleanup_txt($o->{type});
-      $title = "<a href='news?id=$o->{_id}'>$title</a>";
-      $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="news?id=$o->{_id}">(подробнее...)</a>|gs;
+      $title = "<a href='${baseurl}id=$o->{_id}'>$title</a>";
+      $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="${baseurl}id=$o->{_id}">(подробнее...)</a>|gs;
 
       if ($pars->{titles}){
         print "<div class='title_list'>$ct $cu: $title</div>\n";
       }
       else {
         $o->{ncomm} = $o->{ncomm} || 0;
-        my $com = "<a href='news?id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
+        my $com = "<a href='${baseurl}id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
 
         print "<hr><div class='title_list'>$cu: $title</div>\n";
         print "<p class='obj_body'>$text</p>\n";
@@ -126,12 +127,6 @@ try {
     <input name="coll" type="hidden" value="$coll">
     <input  name="title" placeholder="Заголовок" type="text" value="$title">
     <textarea id="text" name="text" placeholder="Текст">$text</textarea>
-    <h4>Тип новости:</h4>
-    <select name="type">
-      <option>Приглашение в поход</option>
-      <option>2</option>
-      <option>3</option>
-    </select>
     <a href="javascript:on_obj_write()" class="submit_button">Опубликовать</a>
   </form>
   </div></div>
@@ -152,6 +147,13 @@ try {
   </div></div>
 
 *;
+
+#    <h4>Тип новости:</h4>
+#    <select name="type">
+#      <option>Приглашение в поход</option>
+#      <option>2</option>
+#      <option>3</option>
+#    </select>
 
   print_tail();
 

@@ -357,7 +357,7 @@ sub object_expand {
 sub show_object{
   my $db   = shift || open_db(); # database
   my $coll = shift; # object collection
-  my $pars  = shift; # (id, prev, next)
+  my $pars  = shift; # id
 
   die "id is empty" unless ($pars->{id});
   my $me = get_my_info($db);

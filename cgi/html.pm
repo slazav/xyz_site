@@ -16,6 +16,7 @@ BEGIN {
     mk_count_nav
     print_info_panel
     print_comments
+    print_refs
   );
 }
 
@@ -285,6 +286,17 @@ sub print_comments {
   print "<div class='nav center'>\n",
         "<a href='javascript:com_new_form(\"$coll\",$o->{_id},-1)'>[новый комментарий]</a></div>\n",
         "<div class='com_form' id='com-1'></div>\n\n" if $#{$comm}>=0 && $can_create;
+}
+
+sub print_refs {
+  my $o = shift;
+  if ($o->{refs}){
+    print "<ul class='refs'>\n";
+    foreach (@{$o->{refs}}){
+      print "<li><a href='$_->{url}'>$_->{text}</a></li>\n";
+    }
+    print "</ul>\n";
+  }
 }
 
 1;

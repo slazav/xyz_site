@@ -202,12 +202,14 @@ sub check_perm {
   if ($coll eq 'comm') {
     return 1 if $action eq 'create' && ($mylvl >= $LEVEL_ANON);
     my $mycomment = $comment->{cuser} eq $user->{_id};
-    return 1 if $action eq 'answer'   && ($mylvl >= $LEVEL_ANON) && !$c->{del} && !$c->{scr};
-    return 1 if $action eq 'edit'     && ($mycomment) && !$c->{del} && !$c->{scr};
+    my $del = $comment->{del};
+    my $scr = $comment->{scr};
+    return 1 if $action eq 'answer'   && ($mylvl >= $LEVEL_ANON) && !$del && !$scr;
+    return 1 if $action eq 'edit'     && ($mycomment) && !$del && !$scr;
     my $myobject = $object->{cuser} eq $user->{_id};
-    return 1 if $action eq 'screen'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$c->{del} && !$c->{scr};
-    return 1 if $action eq 'unscreen' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && $c->{scr};
-    return 1 if $action eq 'delete'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$c->{del} && !$c->{scr};
+    return 1 if $action eq 'screen'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$del && !$scr;
+    return 1 if $action eq 'unscreen' && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && $scr;
+    return 1 if $action eq 'delete'   && ($mycomment || $myobject || $mylvl >= $LEVEL_MODER) && !$del && !$scr;
   }
   return 0;
 }

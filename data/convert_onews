@@ -1,0 +1,85 @@
+#!/usr/bin/perl -w
+use strict;
+
+use JSON;
+use POSIX qw(locale_h mktime);
+use locale;
+setlocale(LC_ALL, "ru_RU.KOI8-R");
+use Encode;
+
+my @entries;
+my $dir='old_news';
+
+#######################################################
+## read group (from ll8.pm)
+sub read_file{
+  my $year=shift;
+  my $file=shift;
+
+  my $read=0;
+  my %e;
+  open IN, $file or return [];
+
+  foreach (<IN>){
+    if (m|^<b>(\d+).(\d+).(\d+)</b>(.*)$|){
+      my $y = $3+0;
+      $y += 1900 if $y >= 98 && $y<=99;
+      $y += 2000 if $y >= 00 && $y<=05;
+
+      push @entries, {%e} if $e{ctime};
+      %e = (ctime => sprintf("%04d/%02d/%02d 00:00:00", $y,$2,$1), text=>$4, title=>'');
+      $!=~ s|^.*?</b>||;
+      next;
+    }
+    if (m|^<li><p><b>(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) -- (.*)</b><br>|){
+      push @entries, {%e} if $e{ctime};
+      %e=(ctime=>$1, title=>$2, text=>'');
+      next;
+    }
+    $e{text} .= $_;
+  }
+  push @entries, {%e} if $e{ctime};
+}
+
+#######################################################
+# get file names
+my @names;
+opendir D, "$dir" or die "can't open data dir: $!";
+foreach (reverse sort readdir D) {
+  print "$_\n";
+  next unless /new(\d+)\.m4h/;
+  my $year = $1;
+  read_file($year, "$dir/$_");
+}
+closedir D;
+
+@entries = reverse @entries;
+
+my $id = 1;
+foreach my $e (@entries){
+  #convert date
+  $e->{ctime} = `date -d "$e->{ctime}" +\%s`;
+  chomp $e->{ctime};
+  $e->{ctime}+=0;
+
+  # convert local urls
+  $e->{text} =~ s|href=\"([\w/\.-]+)\"|href=\"http://slazav.mccme.ru/$1\"|g;
+
+  # remove some newlines
+  $e->{text} =~ s|\n| |g;
+  $e->{text} =~ s|\s+| |g;
+  $e->{text} =~ s|<br>|\n|g;
+  $e->{text} =~ s|<p>|\n|g;
+  $e->{text} = decode('koi8-r', $e->{text});
+  $e->{title} = decode('koi8-r', $e->{title});
+
+  $e->{_id}=$id; $id++;
+}
+
+
+
+
+open OUT, '> onews.js';
+print OUT JSON->new->canonical()->utf8->pretty()->encode(\@entries);
+close OUT;
+

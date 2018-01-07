@@ -1,0 +1,130 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use XML::Simple qw(:strict);
+use POSIX qw(mktime);
+use JSON;
+
+# import news from ljmigrate.py dump
+
+my $dir='./lj';
+
+my $users;
+my $objects;
+my $comments;
+
+#######################################
+sub add_user{
+  my $uid  = shift;
+  my $name = shift;
+  my $site = shift;
+  my $time = shift || 0;
+
+  # try to find user, add one if it does not exists
+  if (exists $users->{$uid}) {
+    $users->{$uid}->{mtime} = $time+0;
+  }
+  else {
+    $users->{$uid} = {
+      '_id'   => $uid,
+      'level'=> 0,
+      'mtime'=> $time+0,
+      'ctime'=> $time+0,
+      'name' => $name,
+      'site' => $site,
+    };
+  }
+}
+
+#######################################
+
+# collect all post folders
+my @names;
+opendir D, "$dir" or die "can't open posts dir: $!";
+foreach (readdir D) {
+  next unless /^entry/;
+  push @names, $_;
+}
+closedir D;
+
+#######################################
+
+
+# sort posts
+my $id=127; # check onews id's
+foreach (sort @names) {
+
+  my $entry = XMLin("$dir/$_/entry.xml", KeyAttr => {}, ForceArray => []);
+
+  ## build object
+  my $obj;
+  my $name = $entry->{poster};
+  my $site = 'lj';
+  $obj->{_id}    = $id; $id++;
+  $obj->{title}  = $entry->{subject};
+  $obj->{text}   = $entry->{event};
+  $obj->{cuser}  = 'https://' . $name . '.livejournal.com';
+  $obj->{ctime}  = $entry->{event_timestamp} + 0; # convert string to num
+  $obj->{origin} = $entry->{url};
+  $obj->{ncomm}  = $entry->{reply_count}+0;
+
+  # external users
+  $obj->{cuser} = $entry->{identity_url} if $entry->{identity_url};
+  $name = $entry->{identity_display} if $entry->{identity_display};
+  $site = 'google' if ($entry->{identity_type} || '') eq'Google';
+  $site = 'fb'     if ($entry->{identity_type} || '') eq 'Facebook';
+  $site = 'mailru' if ($entry->{identity_type} || '') eq 'Mail.ru';
+
+  add_user $obj->{cuser}, $name, $site, $obj->{ctime};
+
+  push @{$objects}, $obj;
+
+  ### comments
+  my $fname = "$dir/$_/comments.xml";
+  next unless -f $fname;
+  my $data = XMLin($fname, KeyAttr => [], ForceArray => ['comment'], SuppressEmpty => 1)->{comment};
+
+  # sort by id!
+  foreach my $c (sort {$a->{id}<=>$b->{id}} @{$data}){
+    if ($c->{'date'}){
+      if ($c->{'date'}=~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$/) {
+        $c->{ctime}=mktime($6,$5,$4,$3,$2-1,$1-1900)+0;
+      }
+      else {print STDERR "Strange date: ", Dumper($c), "\n"};
+    }
+
+    ## build object
+    my $com;
+    my $name = $c->{user} || '';
+    my $site = $c->{user}? 'lj':'';
+
+    $com->{_id}     = $c->{id}+0;
+    $com->{title}  = $c->{subject} if exists $c->{subject};
+    $com->{text}   = $c->{body}    if exists $c->{body};
+    $com->{cuser}  = $name? 'https://' . $name . '.livejournal.com': 'anonymous';
+    $com->{ctime}  = $c->{ctime}   if exists $c->{ctime};
+    $com->{coll}   = 'news';
+    $com->{scr}    = 1 if ($c->{state} || '') eq 'S';
+    $com->{del}    = 1 if ($c->{state} || '') eq 'D';
+    $com->{object_id} = $obj->{_id};
+    $com->{parent_id} = $c->{parentid} if $c->{parentid};
+
+    add_user $com->{cuser}, $name, 'lj', $com->{ctime};
+
+    # create new comment
+    push @{$comments}, $com;
+  }
+}
+
+open OUT, '> lj.js';
+print OUT JSON->new->canonical()->pretty()->utf8()->encode($objects);
+close OUT;
+
+open OUT, '> lj_users.js';
+print OUT JSON->new->canonical()->pretty()->utf8()->encode($users);
+close OUT;
+
+open OUT, '> lj_comm.js';
+print OUT JSON->new->canonical()->pretty()->utf8()->encode($comments);
+close OUT;
+

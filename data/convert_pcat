@@ -1,0 +1,153 @@
+#!/usr/bin/perl -w
+use strict;
+
+use JSON;
+use POSIX qw(locale_h mktime);
+use Encode;
+use utf8;
+use open ':std', ':encoding(UTF-8)';
+
+my @entries;
+my $dir='pcat';
+
+#######################################################
+## read group (from ll8.pm)
+sub read_group{
+  my $file=shift;
+  my $read=0;
+  my %e;
+  open IN, "<:encoding(koi8-r)", $file or return [];
+  foreach (<IN>){
+    if ($read==0){
+      if (/<!-- entry (\d+)\s+(\S+)\s+(\S+\s+\S+)\s+-->/){
+        $read=1;
+        %e = (id=>$1, cuser=>$2, ctime=>$3);
+        next;
+      }
+    }
+    if ($read==1){
+      if (/^title: (.*)/){ $e{title} = $1; next; }
+      if (/^date: (.*)/){  $e{date}  = $1; next; }
+      if (/^tags: (.*)/){  $e{tags}  = $1; next; }
+      if (/^> (.*)$/){
+        $e{text}.="\n" if defined($e{text});
+        $e{text}.=$1;
+        next;
+      }
+      if (/<!-- \/entry -->/){
+        push @entries, {%e};
+        $read=0; next;
+      }
+    }
+  }
+}
+
+#######################################################
+# get file names
+my @names;
+opendir D, "$dir" or die "can't open data dir: $!";
+foreach (readdir D) {
+  next unless /^[0-9]+$/ || /^old/;
+  push @names, $_;
+}
+closedir D;
+
+
+foreach (sort @names) {
+  read_group("$dir/$_");
+}
+
+foreach my $e (@entries){
+#  $e->{text} = decode('koi8-r', $e->{text});
+#  $e->{title} = decode('koi8-r', $e->{title});
+
+  # convert ctime
+  if ($e->{ctime} =~ m|(\d{4})/(\d{2})/(\d{2}) (\d{2}):(\d{2}):(\d{2})|){
+    $e->{ctime} = mktime($6,$5,$4,$3,$2-1,$1-1900);
+  }
+  else {
+    print STDERR "Strange ctime: $e->{ctime}\n";
+  }
+
+  # convert user id's
+  $e->{cuser}='slazav@lj' if $e->{cuser} eq 'sla';
+  $e->{cuser}='leonid-fishkis@lj' if $e->{cuser} eq 'fishkis';
+  $e->{cuser}='kostya_shramov@lj' if $e->{cuser} eq 'shramov';
+  $e->{cuser}='atonis' if $e->{cuser} eq 'atonis00@yandex';
+  $e->{cuser}='atonis' if $e->{cuser} eq 'AlexanderTonis@google';
+  $e->{cuser}='atonis' if $e->{cuser} eq 'AlexanderTonis@fb';
+  foreach my $u ('atonis', 'bashtanov', 'chkhetiani', 'chupikin', 'e_alex',
+                 'ladova', 'savvdm') {
+    $e->{cuser}="$u\@lj" if $e->{cuser} eq $u;
+  }
+  if ($e->{cuser}=~/^(\S+)\@lj/){ $e->{cuser}="https://$1.livejournal.com"; }
+
+  # convert date
+  $e->{date} =~s|\s+$||;
+  if ($e->{date} =~ m|^(\d{4})/(\d{1,2})/(\d{1,2})\s*-\s*(\d{4})/(\d{1,2})/(\d{1,2})$|){
+    $e->{date1} = sprintf "%04d/%02d/%02d",$1,$2,$3;
+    $e->{date2} = sprintf "%04d/%02d/%02d",$4,$5,$6;
+  }
+  elsif ($e->{date} =~ m|^(\d{4})/(\d{1,2})/(\d{1,2})-(\d{1,2})/(\d{1,2})$|){
+    $e->{date1} = sprintf "%04d/%02d/%02d",$1,$2,$3;
+    $e->{date2} = sprintf "%04d/%02d/%02d",$1,$4,$5;
+  }
+  elsif ($e->{date} =~ m|^(\d{4})/(\d{1,2})/(\d{1,2})-(\d{1,2})$|){
+    $e->{date1} = sprintf "%04d/%02d/%02d",$1,$2,$3;
+    $e->{date2} = sprintf "%04d/%02d/%02d",$1,$2,$4;
+  }
+  elsif ($e->{date} =~ m|^(\d{4})/(\d{1,2})/(\d{1,2})$|){
+    $e->{date1} = sprintf "%04d/%02d/%02d",$1,$2,$3;
+    $e->{date2} = sprintf "%04d/%02d/%02d",$1,$2,$3;
+  }
+  else {
+    print STDERR "Strange date: $e->{date}\n";
+    $e->{date1} = $e->{date};
+  }
+  delete $e->{date};
+
+  # references
+  while ($e->{text} && $e->{text} =~ s|^\(\((\S+)\s+(.*?)\)\)$||m) {
+    push @{$e->{refs}}, {url=>$1, text=>$2};
+  }
+  while ($e->{text} && $e->{text} =~ s|^геоданные:\s+\(\((\S+)\s+(.*?)\)\)$||m) {
+    push @{$e->{refs}}, {url=>$1, text=>"геоданные: $2"};
+  }
+  if ($e->{text}) { $e->{text} =~ s|\n+|\n|;}
+  if ($e->{text} && $e->{text}=~/^\s+$/) {delete $e->{text};}
+
+#  if ($e->{text} && $e->{text} =~ /http/) {print STDERR "Href in text: $e->{text}\n";}
+
+  # rivers
+  if ($e->{tags}=~/vodn/) {$e->{rivers} = $e->{title};}
+
+  # tags
+  my $tags = $e->{tags};
+  $e->{tags}    = [];
+  $e->{regions} = [];
+  $e->{types}   = [];
+  push @{$e->{regions}}, "Подмосковье"              if $tags=~/podm/;
+  push @{$e->{regions}}, "Европейская часть России" if $tags=~/evr/;
+  push @{$e->{regions}}, "Кавказ"                   if $tags=~/kavk/;
+  push @{$e->{regions}}, "Урал"                     if $tags=~/ural/;
+  push @{$e->{regions}}, "Сибирь"                   if $tags=~/sib/;
+  push @{$e->{regions}}, "Заграница"                if $tags=~/zagr/;
+
+  push @{$e->{types}}, "вело"   if $tags=~/velo/;
+  push @{$e->{types}}, "пешком" if $tags=~/pesh/;
+  push @{$e->{types}}, "лыжи"   if $tags=~/lyzh/;
+  push @{$e->{types}}, "сплав"  if $tags=~/vodn/;
+
+  push @{$e->{tags}},  "группа Дмитриева"  if $tags=~/D/;
+  push @{$e->{tags}},  "группа Сафронова"  if $tags=~/S/;
+  push @{$e->{tags}},  "соревнования"      if $tags=~/sor/;
+  delete $e->{tags} if $#{$e->{tags}}<0;
+  delete $e->{types} if $#{$e->{types}}<0;
+  delete $e->{regions} if $#{$e->{regions}}<0;
+}
+
+@entries = sort {$a->{date1} cmp $b->{date1}} @entries;
+
+open OUT, '> pcat.js';
+print OUT JSON->new->canonical()->pretty()->encode(\@entries);
+close OUT;

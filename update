@@ -31,7 +31,7 @@ function upd_m4() {
   done
 }
 
-site=test
+site=${1:-test}
 
 for dir in html cgi; do
   echo "    Updating m4:"

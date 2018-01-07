@@ -1,0 +1,11 @@
+sed -n '
+  s/.*href=\"\?\([^">]*\)\"\?>/ \1/gp
+' *.m4h |\
+sed -n '
+  /http:\/\//d
+  s/\.\(htm\|txt\|jpg\|tgz\|gif\|png\|zip\).*$/.\1/gp
+' |\
+sort -u |\
+while read f; do
+  [ -f "/home/sla/CH/data/$f" ] || echo $f
+done > links

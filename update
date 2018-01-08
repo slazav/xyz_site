@@ -8,6 +8,10 @@
 #   $dest/defs.m4 и с установленными переменными FILE_NAME и SITE_NAME
 
 remote_dest="xyzr:/var/www"
+site=${1:-test}
+
+osite=$(cat site.txt)
+[ "$osite" == "$site" ] || echo $site > site.txt
 
 function upd_m4() {
   src=$1
@@ -24,14 +28,13 @@ function upd_m4() {
 
     o=${i%.m4}
 
-    if [ "$i" -nt "$o" -o "$defs1" -nt "$o" -o "$defs2" -nt "$o" ]; then
+    if [ "$i" -nt "$o" -o "$defs1" -nt "$o" -o "$defs2" -nt "$o" -o "site.txt" -nt "$o" ]; then
       echo "-- $o"
       m4 -D FILE_NAME=${o##*/} -D SITE_NAME=$site $defs1 $defs2 "$i" > $o
     fi
   done
 }
 
-site=${1:-test}
 
 for dir in html cgi; do
   echo "    Updating m4:"

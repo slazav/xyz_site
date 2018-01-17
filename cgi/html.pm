@@ -260,12 +260,10 @@ sub print_comments {
   my $comm = shift;
   my $me   = shift;
 
-  my $can_create = check_perm 'comm', 'create', $me;
-
   print "<hr>\n";
   print "<div class='nav center'>\n",
         "<a href='javascript:com_new_form(\"$coll\",$o->{_id},0)'>[новый комментарий]</a></div>\n",
-        "<div class='com_form' id='com0'></div>\n\n" if $can_create;
+        "<div class='com_form' id='com0'></div>\n\n" if $o->{can_comment};
 
   foreach my $c (@{$comm}){
     my $m = ($c->{depth} || 0)*20;
@@ -300,7 +298,7 @@ sub print_comments {
   }
   print "<div class='nav center'>\n",
         "<a href='javascript:com_new_form(\"$coll\",$o->{_id},-1)'>[новый комментарий]</a></div>\n",
-        "<div class='com_form' id='com-1'></div>\n\n" if $#{$comm}>=0 && $can_create;
+        "<div class='com_form' id='com-1'></div>\n\n" if $#{$comm}>=0 && $o->{can_comment};
 }
 
 

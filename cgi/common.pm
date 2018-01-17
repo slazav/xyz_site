@@ -186,21 +186,21 @@ sub check_perm {
     my $myobject = $object->{cuser} eq $user->{_id};
     my $del = $object->{del};
     my $arc = $object->{next};
-    return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$del && !$arc;
-    return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$del && !$arc;
-    return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $del;
+    return 1 if $action eq 'comment' && ($myobject || $mylvl >= $LEVEL_ANON) && !$del && !$arc;
+    return 1 if $action eq 'edit'    && ($myobject || $mylvl >= $LEVEL_ADMIN) && !$del && !$arc;
+    return 1 if $action eq 'delete'  && ($myobject || $mylvl >= $LEVEL_MODER) && !$del && !$arc;
+    return 1 if $action eq 'undel'   && ($myobject || $mylvl >= $LEVEL_MODER) && $del;
   }
   if ($coll eq 'pcat' || $coll eq 'geo') {
+    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
     my $del = $object->{del};
     my $arc = $object->{next};
-    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_NORM);
     my $myobject = $object->{cuser} eq $user->{_id};
     return 1 if $action eq 'edit'   && ($myobject || $mylvl >= $LEVEL_NORM)  && !$del && !$arc;
     return 1 if $action eq 'delete' && ($myobject || $mylvl >= $LEVEL_MODER) && !$del && !$arc;
     return 1 if $action eq 'undel'  && ($myobject || $mylvl >= $LEVEL_MODER) && $del;
   }
   if ($coll eq 'comm') {
-    return 1 if $action eq 'create' && ($mylvl >= $LEVEL_ANON);
     my $mycomment = $comment->{cuser} eq $user->{_id};
     my $del = $comment->{del};
     my $scr = $comment->{scr};
@@ -257,7 +257,7 @@ sub comment_expand {
   $c->{can_unscreen} = 1 if check_perm('comm', 'unscreen', $me, $o, $c);
   $c->{can_answer}   = 1 if check_perm('comm', 'answer',   $me, $o, $c);
 
-  # screen comment which user can not be seen
+  # screen comment which user can not see
   if ($c->{scr} && !$c->{can_unscreen}){
     delete $c->{title};
     delete $c->{text};
@@ -469,7 +469,7 @@ sub new_comment {
 
   # check user permissions
   die "permission denied"
-    unless check_perm('comm', 'create', $me, $obj);
+    unless check_perm($coll, 'comment', $me, $obj);
 
   $com->{_id}       = next_id($db, "$coll:comm")+0;
   $com->{cuser}     = $me->{_id} || 'anonymous';
@@ -641,9 +641,10 @@ sub object_expand {
   my $users = $db->get_collection('users');
 
   add_userinfo $db, $o;
-  $o->{can_edit}   = 1 if check_perm($coll, 'edit',   $me, $o);
-  $o->{can_delete} = 1 if check_perm($coll, 'delete', $me, $o);
-  $o->{can_undel}  = 1 if check_perm($coll, 'undel',  $me, $o);
+  $o->{can_comment} = 1 if check_perm($coll, 'comment', $me, $o);
+  $o->{can_edit}    = 1 if check_perm($coll, 'edit',   $me, $o);
+  $o->{can_delete}  = 1 if check_perm($coll, 'delete', $me, $o);
+  $o->{can_undel}   = 1 if check_perm($coll, 'undel',  $me, $o);
 }
 
 ############################################################

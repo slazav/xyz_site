@@ -128,28 +128,7 @@ foreach my $e (@entries){
 #  if ($e->{tags}=~/vodn/) {$e->{rivers} = $e->{title};}
 
   # tags
-  my $tags = $e->{tags};
-  $e->{tags}    = [];
-  $e->{regions} = [];
-  $e->{types}   = [];
-  push @{$e->{regions}}, "Подмосковье"              if $tags=~/podm/;
-  push @{$e->{regions}}, "Европейская часть России" if $tags=~/evr/;
-  push @{$e->{regions}}, "Кавказ"                   if $tags=~/kavk/;
-  push @{$e->{regions}}, "Урал"                     if $tags=~/ural/;
-  push @{$e->{regions}}, "Сибирь"                   if $tags=~/sib/;
-  push @{$e->{regions}}, "Заграница"                if $tags=~/zagr/;
-
-  push @{$e->{types}}, "вело"   if $tags=~/velo/;
-  push @{$e->{types}}, "пешком" if $tags=~/pesh/;
-  push @{$e->{types}}, "лыжи"   if $tags=~/lyzh/;
-  push @{$e->{types}}, "сплав"  if $tags=~/vodn/;
-
-  push @{$e->{tags}},  "группа Дмитриева"  if $tags=~/D/;
-  push @{$e->{tags}},  "группа Сафронова"  if $tags=~/S/;
-  push @{$e->{tags}},  "соревнования"      if $tags=~/sor/;
-  delete $e->{tags} if $#{$e->{tags}}<0;
-  delete $e->{types} if $#{$e->{types}}<0;
-  delete $e->{regions} if $#{$e->{regions}}<0;
+  $e->{tags} = [split /\s+/, $e->{tags}];
 }
 
 @entries = sort {$a->{date1} cmp $b->{date1}} @entries;

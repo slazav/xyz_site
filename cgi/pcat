@@ -41,18 +41,8 @@ try {
 
   # print one
   if ($pars->{id}) {
-
-    my $title = cleanup_txt($data->{object}->{title});
-    my $text  = cleanup_htm($data->{object}->{text});
-    my $type  = cleanup_txt($data->{object}->{type});
-
-    print "<div class='title'>$title</div>\n";
-    print "<div class='obj_body'>$text</p>\n";
-
-    print_refs $data->{object};
-    print_info_panel($data->{object}, $baseurl);
-    print "<hr>\n";
-
+    print_pcat $data->{object}, $baseurl, 'full';
+    print_info_panel($data->{object}, $baseurl, 'full');
     print_comments $coll, $data->{object}, $data->{comments}, $data->{me};
   }
   # print many
@@ -70,27 +60,11 @@ try {
     # << >> panel
     my $nav_panel1 = mk_count_nav "${baseurl}$ns", $data->{skip}, $data->{num}, $data->{count};
     print $nav_panel1;
+    print "<hr>\n";
 
     foreach my $o (@{$data->{objects}}) {
-      my $cu = mk_face($o->{cuser_info});
-      my $ct = strftime "%Y-%m-%d %H:%M", localtime($o->{ctime});
-      my $title = cleanup_txt($o->{title});
-      my $text  = cleanup_htm($o->{text});
-      my $type  = cleanup_txt($o->{type});
-      $title = "<a href='${baseurl}id=$o->{_id}'>$title</a>";
-      $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="${baseurl}id=$o->{_id}">(подробнее...)</a>|gs;
-
-      if ($pars->{titles}){
-        print "<div class='title_list'>$ct $cu: $title</div>\n";
-      }
-      else {
-        $o->{ncomm} = $o->{ncomm} || 0;
-        my $com = "<a href='${baseurl}id=$o->{_id}'>комментариев: $o->{ncomm}</a>";
-        print "<hr><div class='title_list'>$cu: $title</div>\n";
-        print "<p class='obj_body'>$text</p>\n";
-        print_refs $o;
-        print "<div class='obj_info right'>$ct, $com</div>\n";
-      }
+      print_pcat($o, $baseurl, 'short');
+      print_info_panel($o, $baseurl, 'short');
     }
     print $nav_panel1;
 

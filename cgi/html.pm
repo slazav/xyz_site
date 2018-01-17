@@ -16,7 +16,8 @@ BEGIN {
     mk_count_nav
     print_info_panel
     print_comments
-    print_refs
+    print_news
+    print_pcat
   );
 }
 
@@ -197,40 +198,53 @@ sub mk_count_nav {
 sub print_info_panel {
   my $o = shift;
   my $url = shift;
+  my $style = shift || 'full';  # full, short
+
+  my $panel;
 
   my $cu = mk_face($o->{cuser_info});
   my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{ctime});
+  my $ct = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{ctime});
+  my $nc = $o->{ncomm} || 0;
 
-  my $panel = "$cu, $ct<br>";
-  if ($o->{prev}){
-    my $mt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{mtime});
-    if ($o->{muser} ne $o->{cuser}){
-      my $mu = mk_face($o->{muser_info});
-      $panel .= "Отредактировано: $mu, $mt";
-    } else {
-      $panel .= "Отредактировано автором: $mt";
+  if ($style eq 'full') {
+    $panel = "$cu, $ct, комментариев: $nc";
+    $panel.="<br>\n";
+    if ($o->{prev}){
+      my $mt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{mtime});
+      if ($o->{muser} ne $o->{cuser}){
+        my $mu = mk_face($o->{muser_info});
+        $panel .= "Отредактировано: $mu, $mt";
+      } else {
+        $panel .= "Отредактировано автором: $mt";
+      }
+      $panel .= " - <a href='${url}id=$o->{prev}'>старая версия</a>" if $o->{prev};
+      $panel .= "<br>\n";
     }
-    $panel .= " - <a href='${url}id=$o->{prev}'>старая версия</a>" if $o->{prev};
-    $panel .= "<br>\n";
-  }
-  if ($o->{next}){
-    $panel .= " Архив - <a href='${url}id=$o->{next}'>исправленная версия</a>\n";
-  }
-  if ($o->{del}){
-    my $dt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{dtime});
-    if ($o->{duser} ne $o->{cuser}) {
-      my $du = mk_face($o->{duser_info});
-      $panel .= " Удалено: $du, $dt<br>\n";
-    } else {
-      $panel .= "Удалено автором: $dt\n";
+    if ($o->{next}){
+      $panel .= " Архив - <a href='${url}id=$o->{next}'>исправленная версия</a>\n";
     }
-  }
-  $panel .= " <a href='javascript:show(\"obj_del_popup\")'>[удалить]</a>" if $o->{can_delete};
-  $panel .= " <a href='javascript:on_obj_undel(\"$coll\",$o->{_id})'>[восстановить]</a>" if $o->{can_undel};
-  $panel .= " <a href='javascript:show(\"obj_popup\")'>[редактировать]</a>" if $o->{can_edit};
-  $panel .= " <a href='$o->{origin}'>(источник)</a>" if exists $o->{origin};
+    if ($o->{del}){
+      my $dt = strftime "%Y-%m-%d %H:%M:%S", localtime($o->{dtime});
+      if ($o->{duser} ne $o->{cuser}) {
+        my $du = mk_face($o->{duser_info});
+        $panel .= " Удалено: $du, $dt<br>\n";
+      } else {
+        $panel .= "Удалено автором: $dt\n";
+      }
+    }
+    $panel .= " <a href='javascript:show(\"obj_del_popup\")'>[удалить]</a>" if $o->{can_delete};
+    $panel .= " <a href='javascript:on_obj_undel(\"$coll\",$o->{_id})'>[восстановить]</a>" if $o->{can_undel};
+    $panel .= " <a href='javascript:show(\"obj_popup\")'>[редактировать]</a>" if $o->{can_edit};
+    $panel .= " <a href='$o->{origin}'>(источник)</a>" if exists $o->{origin};
 
+  }
+  else {
+    $nc = "<a href='${url}id=$o->{_id}'>комментариев: $nc</a>";
+    $panel = "$ct, $nc";
+  }
   print "<div class='obj_info right'>$panel</div>\n";
+  print "<hr>" if $style eq 'short';
 }
 
 ################################################
@@ -248,6 +262,7 @@ sub print_comments {
 
   my $can_create = check_perm 'comm', 'create', $me;
 
+  print "<hr>\n";
   print "<div class='nav center'>\n",
         "<a href='javascript:com_new_form(\"$coll\",$o->{_id},0)'>[новый комментарий]</a></div>\n",
         "<div class='com_form' id='com0'></div>\n\n" if $can_create;
@@ -288,15 +303,85 @@ sub print_comments {
         "<div class='com_form' id='com-1'></div>\n\n" if $#{$comm}>=0 && $can_create;
 }
 
-sub print_refs {
-  my $o = shift;
-  if ($o->{refs}){
-    print "<ul class='refs'>\n";
-    foreach (@{$o->{refs}}){
-      print "<li><a href='$_->{url}'>$_->{text}</a></li>\n";
+
+################################################
+# print news
+sub print_news {
+  my $o       = shift;
+  my $baseurl = shift;
+  my $style   = shift || 'full'; # full, short, title
+
+  # cleanup all the data to have safe html
+  my $title = cleanup_txt($o->{title});
+  my $text  = cleanup_htm($o->{text});
+  my $type  = cleanup_txt($o->{type});
+
+  # in short/title mode we want a link to the full page in the title
+  if ($style eq 'title' || $style eq 'short') {
+    my $cu = mk_face($o->{cuser_info});
+    $title = "<a href='${baseurl}id=$o->{_id}'>$cu: $title</a>";
+  }
+
+  # process lj-cuts in short mode
+  if ($style eq 'short') {
+    $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="${baseurl}id=$o->{_id}">(подробнее...)</a>|gs;
+  }
+
+  #print everything
+  print "<div class='title'>$title</div>\n";
+  print "<div class='obj_body'>$text</div>\n" if style ne 'title';
+
+}
+
+
+################################################
+# print pcat
+sub print_pcat {
+  my $o       = shift;
+  my $baseurl = shift;
+  my $style   = shift; # full, short, title
+
+  # cleanup all the data to have safe html
+  my $title = cleanup_txt($o->{title});
+  my $text  = cleanup_htm($o->{text});
+  my $type  = cleanup_txt($o->{type});
+
+  my $icons = '';
+  foreach (@{$o->{tags}}) {
+    $icons .= "<img src='img/t_$_' class='tag_icon'>"
+      if ($_ eq "pesh" || $_ eq "vodn" ||
+          $_ eq "gorn" || $_ eq "lyzh" ||
+          $_ eq "velo" || $_ eq "sor");
+  }
+
+  my $d = cleanup_txt($o->{date1});
+  my $d2 = cleanup_txt($o->{date2});
+  $d .= " - $d2" if $d2 && ($d2 ne $d);
+
+  # in short/title mode we want a link to the full page in the title
+  if ($style eq 'title' || $style eq 'short') {
+    $title = "<a href='${baseurl}id=$o->{_id}'>$title</a>";
+  }
+
+  # process lj-cuts in short mode
+  if ($style eq 'short') {
+    $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="${baseurl}id=$o->{_id}">(подробнее...)</a>|gs;
+  }
+
+  print "<div class='title'>$icons$d: $title</div>\n";
+
+  if (style ne 'title'){
+    print "<div class='obj_body'>$text</div>\n";
+
+    if ($o->{refs}){
+      print "<ul class='refs'>\n";
+      foreach (@{$o->{refs}}){
+        print "<li><a href='$_->{url}'>$_->{text}</a></li>\n";
+      }
+      print "</ul>\n";
     }
-    print "</ul>\n";
   }
 }
 
 1;
+

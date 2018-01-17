@@ -10,6 +10,7 @@ use JSON;
 use site;
 use common;
 use safe_html;
+use utf8;
 use open ':std', ':encoding(UTF-8)';
 use Encode;
 
@@ -29,8 +30,16 @@ try {
     $obj->{text}  = decode utf8=>(param('text')||'');
     $obj->{type}  = decode utf8=>(param('type')||'');
   }
+  elsif ($coll eq 'pcat') {
+    $obj->{title} = decode utf8=>(param('title')||'');
+    $obj->{text}  = decode utf8=>(param('text')||'');
+    $obj->{people}  = decode utf8=>(param('people')||'');
+    $obj->{rivers}  = decode utf8=>(param('rivers')||'');
+    $obj->{date1}  = param('date1')||'';
+    $obj->{date2}  = param('date2')||'';
+  }
   else {
-    die "uncnown collection: $coll";
+    die "unknown collection: $coll";
   }
 
   # write the object

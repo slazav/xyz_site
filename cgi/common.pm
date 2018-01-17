@@ -332,7 +332,7 @@ sub update_ncomm {
   my $comments = $db->get_collection( "$coll:comm" );
   die "Can't connect to a database" unless $objects || $comments;
 
-  my $count = $comments->count({'coll' => $coll, 'object_id' => $id+0,
+  my $count = $comments->count({'object_id' => $id+0,
                                 'del' => {'$exists'=>0}, 'scr' => {'$exists'=>0}});
   my $u = $objects->find_one_and_update({'_id' => $id+0}, {'$set'=>{'ncomm'=>$count}});
   die "Can't update ncomm" unless $u;
@@ -644,7 +644,7 @@ sub show_object{
   my $coll = shift; # object collection
   my $pars  = shift; # id, skip, num, search
 
-  my $ret;
+  my $ret = {'coll'=>$coll};
   $ret->{me} = get_my_info($db);
   my $objects = $db->get_collection( $coll );
 

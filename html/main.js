@@ -249,7 +249,7 @@ function com_edit_form(coll, id){
    + "<a href='javascript:on_com_edit()' >Опубликовать</a>"
    + "<a href='javascript:close_com_form()'>Закрыть</a>"
    + "</form>";
-   do_request('com_show', {id: id, nohtm: 1}, fill_com_form);
+   do_request('com_show', {id: id, coll: coll}, fill_com_form);
 }
 
 // Fill edit comment form with data.

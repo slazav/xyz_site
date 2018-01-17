@@ -359,6 +359,12 @@ form.popup {
   text-decoration:none;
 }
 
+img.tag_icon {
+  margin: 2px 5px 2px 0px;
+  top: 5px;
+  position: relative;
+}
+
 .center { text-align: center; }
 .left   { text-align: left; }
 .right  { text-align: right; }

@@ -214,6 +214,31 @@ sub check_perm {
   return 0;
 }
 
+############################################################
+# Add {c,m,d}user_info fields for any object.
+# Before printing any object we want to have human-readable user info in it.
+# In the database only cuser (muser, duser) ID is stored.
+sub add_userinfo {
+  my $db   = shift; # database
+  my $o    = shift; # object
+  my $users = $db->get_collection('users');
+
+  # build human-readable user information
+  my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
+  if ($o->{cuser}) {
+    $o->{cuser_info} = $users->find_one({'_id'=>$o->{cuser}}, $pr);
+  }
+  if ($o->{muser}) {
+    if ($o->{cuser} && $o->{muser} eq $o->{cuser}){ $o->{muser_info} = $o->{cuser_info}; }
+    else { $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr); }
+  }
+  if ($o->{duser}) {
+    if    ($o->{cuser} && $o->{duser} eq $o->{cuser}){ $o->{duser_info} = $o->{cuser_info}; }
+    elsif ($o->{muser} && $o->{duser} eq $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
+    else { $o->{duser_info} = $users->find_one({'_id'=>$o->{duser}}, $pr); }
+  }
+}
+
 
 ############################################################
 # add additional fields for list_comments
@@ -224,9 +249,7 @@ sub comment_expand {
   my $c    = shift;
   my $users = $db->get_collection('users');
 
-  # build human-readable user information
-  my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
-  $c->{cuser_info} = $users->find_one({'_id'=>$c->{cuser}}, $pr);
+  add_userinfo $db, $c;
 
   $c->{can_edit}   = 1 if check_perm('comm', 'edit',   $me, $o, $c);
   $c->{can_delete} = 1 if check_perm('comm', 'delete', $me, $o, $c);
@@ -234,7 +257,7 @@ sub comment_expand {
   $c->{can_unscreen} = 1 if check_perm('comm', 'unscreen', $me, $o, $c);
   $c->{can_answer}   = 1 if check_perm('comm', 'answer',   $me, $o, $c);
 
-  # screen comment which user can not see
+  # screen comment which user can not be seen
   if ($c->{scr} && !$c->{can_unscreen}){
     delete $c->{title};
     delete $c->{text};
@@ -617,20 +640,7 @@ sub object_expand {
   my $o    = shift;
   my $users = $db->get_collection('users');
 
-  # build human-readable user information
-  my $pr = {'sess'=>0, 'info'=>0, 'ctime'=>0, 'mtime'=>0, 'level'=>0};
-  $o->{cuser_info} = $users->find_one({'_id'=>$o->{cuser}}, $pr);
-
-  if ($o->{muser}) {
-    if ($o->{muser} eq $o->{cuser}){ $o->{muser_info} = $o->{cuser_info}; }
-    else { $o->{muser_info} = $users->find_one({'_id'=>$o->{muser}}, $pr); }
-  }
-
-  if ($o->{duser}) {
-    if    ($o->{duser} eq $o->{cuser}){ $o->{duser_info} = $o->{cuser_info}; }
-    elsif ($o->{duser} eq $o->{muser}){ $o->{duser_info} = $o->{muser_info}; }
-    else { $o->{duser_info} = $users->find_one({'_id'=>$o->{duser}}, $pr); }
-  }
+  add_userinfo $db, $o;
   $o->{can_edit}   = 1 if check_perm($coll, 'edit',   $me, $o);
   $o->{can_delete} = 1 if check_perm($coll, 'delete', $me, $o);
   $o->{can_undel}  = 1 if check_perm($coll, 'undel',  $me, $o);

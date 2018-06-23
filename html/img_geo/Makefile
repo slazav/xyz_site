@@ -6,7 +6,9 @@ all:\
   fire.png\
   luola.png\
   rod.png\
-  rodh.png
+  rodh.png\
+  st.png st_h.png ob.png pass.png peak.png def.png\
+
 
 
 %.png: %.gif

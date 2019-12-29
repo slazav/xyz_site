@@ -1,0 +1,90 @@
+---
+- hosts: xyz
+  vars:
+     datadir: "/mnt/data1/"
+     db_items:
+       - {port: "8081", name: "orig",     home: "{{datadir}}graphene"}
+       - {port: "8082", name: "alena",    home: "{{datadir}}db_alena"}
+       - {port: "8084", name: "f4",       home: "{{datadir}}db_f4"}
+       - {port: "8085", name: "drydemag", home: "{{datadir}}db_drydemag"}
+       - {port: "8086", name: "rota",     home: "{{datadir}}db_rota"}
+       - {port: "8087", name: "nanoy",    home: "{{datadir}}db_nanoy"}
+       - {port: "8088", name: "fincryo",  home: "{{datadir}}db_fincryo"}
+       - {port: "8089", name: "proto",    home: "{{datadir}}db_proto"}
+       - {port: "8090", name: "weather",  home: "{{datadir}}db_weather"}
+       - {port: "8091", name: "misc",     home: "{{datadir}}db_misc"}
+  tasks:
+
+
+  - name: Create db users
+    user: name="db_{{item.name}}" create_home=no groups=users
+          password_lock=yes shell=/usr/bin/graphene_int home={{item.home}}
+    with_items: "{{db_items}}"
+
+
+  - name: Create home folders
+    file: path={{item.home}} state=directory mode=0755 owner=db_{{item.name}} group=db_{{item.name}}
+    with_items: "{{db_items}}"
+
+  - name: Create .hushlogin
+    copy:
+      content: ""
+      dest: "{{item.home}}/.hushlogin"
+      force: no
+      group: db_{{item.name}}
+      owner: db_{{item.name}}
+      mode: 0644
+    with_items: "{{db_items}}"
+
+  - name: Create /etc/ssh/authorized_keys folder
+    file: path=/etc/ssh/authkeys  state=directory  mode=0755
+
+  - name: Add authorized_keys
+    copy:
+      src: ssh/ak_db_{{item.name}}
+      dest: /etc/ssh/authorized_keys/db_{{item.name}}
+      mode: 0644
+      owner: root
+    with_items: "{{db_items}}"
+
+  - name: Install sshd_config
+    template:
+      src: ssh/sshd_config
+      dest: /etc/ssh/sshd_config
+      validate: /usr/sbin/sshd -t -f %s
+
+  - name: restart sshd service
+    service: name=sshd state=restarted enabled=yes
+
+
+  - name: install init script
+    template:
+      src: graphene/init_script
+      dest: /etc/init.d/graphene_{{item.name}}
+      mode: 0755
+    with_items: "{{db_items}}"
+
+
+  - name: do systemctl daemon_reload
+    systemd: daemon_reload=yes
+
+  - name: start services
+    service: name=graphene_{{item.name}} state=restarted enabled=yes
+    with_items: "{{db_items}}"
+
+  - name: open graphene_http ports
+    ufw: rule=allow proto=tcp port={{item.port}}
+    with_items:  "{{db_items}}"
+
+  - name: install grafana datasource
+    template:
+      src: grafana/datasource.tmpl.yml
+      dest: /etc/grafana/provisioning/datasources/{{item.name}}.yaml
+      mode: 0644
+    with_items: "{{db_items}}"
+
+
+  - name: restart grafana service
+    service: name=grafana-server state=restarted enabled=yes
+
+

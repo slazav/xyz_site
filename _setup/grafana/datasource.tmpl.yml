@@ -1,0 +1,9 @@
+# # config file version
+apiVersion: 1
+
+datasources:
+ - name: {{item.name}}
+   type: grafana-simple-json-datasource
+   access: direct # direct/proxy
+   url: http://slazav.xyz:{{item.port}}
+   editable: true

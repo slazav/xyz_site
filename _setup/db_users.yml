@@ -1,0 +1,58 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: Create nano user
+    user:
+      name: nano
+      groups: users
+      append: yes
+
+  - name: Create db users
+    user: name={{item}} create_home=no groups=users
+          password_lock=yes shell=/usr/bin/graphene_int home=/mnt/data1/{{item}}
+    with_items:
+    - "db_lanc"
+    - "db_alena"
+    - "db_f4"
+    - "db_drydemag"
+    - "db_rota"
+    - "db_nanoy"
+    - "db_misc"
+
+  - name: Create home folders
+    file: path=/mnt/data1/{{item}} state=directory mode=0755 owner={{item}} group={{item}}
+    with_items:
+    - "db_lanc"
+    - "db_alena"
+    - "db_f4"
+    - "db_drydemag"
+    - "db_rota"
+    - "db_nanoy"
+    - "db_misc"
+
+
+  - name: Create /etc/ssh/authkeys folder
+    file: path=/etc/ssh/authkeys  state=directory  mode=0755
+
+  - name: Add authorized_keys
+    copy: src=ssh/ak_{{item}} dest=/etc/ssh/authkeys/{{item}} mode=0644 owner=root
+    with_items:
+    - "nano"
+    - "db_alena"
+    - "db_lanc"
+    - "db_f4"
+    - "db_drydemag"
+    - "db_rota"
+    - "db_nanoy"
+    - "db_misc"
+
+  - name: Install sshd_config
+    copy:
+      src: ssh/sshd_config
+      dest: /etc/ssh/sshd_config
+      validate: /usr/sbin/sshd -t -f %s
+
+  - name: restart sshd service
+    service: name=sshd state=restarted enabled=yes
+

@@ -1,0 +1,21 @@
+---
+- hosts: xyz
+  vars:
+     datadir: "/mnt/data1/"
+     del_items:
+       - "lanc"
+
+  tasks:
+
+  - name: stop old services
+    service: name=graphene_{{item}} state=stopped enabled=no
+    with_items: "{{del_items}}"
+
+  - name: delete old init scripts
+    file: path=/etc/init.d/graphene_{{item}} state=absent
+    with_items: "{{del_items}}"
+
+  - name: Rewove db users
+    user: name="{{item}}" state=absent
+    with_items: "{{del_items}}"
+

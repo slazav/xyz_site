@@ -1,0 +1,23 @@
+# configure stunnel
+---
+- hosts: xyz
+
+  tasks:
+  - name: install stunnel
+    apt: pkg=stunnel4 state=present
+
+  - name: copy stunnel configuration
+    copy: src=cfg/stunnel.conf dest=/etc/stunnel/stunnel.conf
+
+  - name: copy stunnel key
+    copy: mode=0600 src=cfg/stunnel.pem  dest=/etc/stunnel/stunnel.pem
+
+  - name: copy stunnel key
+    replace: regexp="ENABLED=0" replace="ENABLED=1" path=/etc/default/stunnel4
+
+  - name: open http port
+    ufw: rule=allow port=443 proto=tcp
+
+  - name: start service
+    service: name=stunnel4 state=started enabled=yes
+

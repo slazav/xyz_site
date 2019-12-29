@@ -1,0 +1,13 @@
+---
+- hosts: xyz
+
+  tasks:
+  - name: open tunnel ports
+    ufw: rule=allow proto=tcp port={{item}}
+    with_items:
+      - "19999"
+      - "19998"
+
+
+
+

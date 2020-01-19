@@ -4,6 +4,7 @@
      datadir: "/mnt/data1/"
      db_items:
        - {port: "8081", name: "orig",     home: "{{datadir}}graphene"}
+<<<<<<< HEAD
        - {port: "8084", name: "f4",       home: "{{datadir}}db_f4"}
        - {port: "8085", name: "drydemag", home: "{{datadir}}db_drydemag"}
        - {port: "8087", name: "nanoy",    home: "{{datadir}}db_nanoy"}
@@ -13,6 +14,17 @@
        - {port: "8086", name: "rota",     home: "{{datadir}}db_rota"}
        - {port: "8089", name: "misc",     home: "{{datadir}}db_misc"}
        - {port: "8090", name: "test",     home: "{{datadir}}db_test"}
+=======
+       - {port: "8082", name: "alena",    home: "{{datadir}}db_alena"}
+       - {port: "8084", name: "f4",       home: "{{datadir}}db_f4"}
+       - {port: "8085", name: "drydemag", home: "{{datadir}}db_drydemag"}
+       - {port: "8086", name: "rota",     home: "{{datadir}}db_rota"}
+       - {port: "8087", name: "nanoy",    home: "{{datadir}}db_nanoy"}
+       - {port: "8088", name: "fincryo",  home: "{{datadir}}db_fincryo"}
+       - {port: "8089", name: "proto",    home: "{{datadir}}db_proto"}
+       - {port: "8090", name: "weather",  home: "{{datadir}}db_weather"}
+       - {port: "8091", name: "misc",     home: "{{datadir}}db_misc"}
+>>>>>>> 0969f63eae8ae8d1ae980239fa9323c3cb6c0539
   tasks:
 
 
@@ -21,10 +33,15 @@
           password_lock=yes shell=/usr/bin/graphene_int home={{item.home}}
     with_items: "{{db_items}}"
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0969f63eae8ae8d1ae980239fa9323c3cb6c0539
   - name: Create home folders
     file: path={{item.home}} state=directory mode=0755 owner=db_{{item.name}} group=db_{{item.name}}
     with_items: "{{db_items}}"
 
+<<<<<<< HEAD
   - name: Create /etc/ssh/authorized_keys folder
     file: path=/etc/ssh/authorized_keys  state=directory  mode=0755
 
@@ -33,6 +50,29 @@
     with_items: "{{db_items}}"
 
 
+=======
+  - name: Create .hushlogin
+    copy:
+      content: ""
+      dest: "{{item.home}}/.hushlogin"
+      force: no
+      group: db_{{item.name}}
+      owner: db_{{item.name}}
+      mode: 0644
+    with_items: "{{db_items}}"
+
+  - name: Create /etc/ssh/authorized_keys folder
+    file: path=/etc/ssh/authkeys  state=directory  mode=0755
+
+  - name: Add authorized_keys
+    copy:
+      src: ssh/ak_db_{{item.name}}
+      dest: /etc/ssh/authorized_keys/db_{{item.name}}
+      mode: 0644
+      owner: root
+    with_items: "{{db_items}}"
+
+>>>>>>> 0969f63eae8ae8d1ae980239fa9323c3cb6c0539
   - name: Install sshd_config
     template:
       src: ssh/sshd_config
@@ -55,7 +95,11 @@
     systemd: daemon_reload=yes
 
   - name: start services
+<<<<<<< HEAD
     service: name=graphene_{{item.name}} state=started enabled=yes
+=======
+    service: name=graphene_{{item.name}} state=restarted enabled=yes
+>>>>>>> 0969f63eae8ae8d1ae980239fa9323c3cb6c0539
     with_items: "{{db_items}}"
 
   - name: open graphene_http ports

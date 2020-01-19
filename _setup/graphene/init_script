@@ -18,7 +18,6 @@ DAEMON=/usr/bin/graphene_http
 PIDFILE={{item.home}}/.graphene.pid
 LOGFILE={{item.home}}/.graphene.log
 DAEMON_OPTS="-f -d {{item.home}} -p {{item.port}} -P ${PIDFILE} -l ${LOGFILE}"
-SCRIPTNAME=/etc/init.d/"$NAME"
 
 test -f $DAEMON || exit 0
 

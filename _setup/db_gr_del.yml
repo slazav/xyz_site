@@ -3,8 +3,8 @@
   vars:
      datadir: "/mnt/data1/"
      del_items:
-       - "db_lanc"
-       - "db_alena"
+       - "lanc"
+       - "alena"
 
   tasks:
 
@@ -16,7 +16,7 @@
     file: path=/etc/init.d/graphene_{{item}} state=absent
     with_items: "{{del_items}}"
 
-  - name: Create db users
+  - name: Rewove db users
     user: name="{{item}}" state=absent
     with_items: "{{del_items}}"
 

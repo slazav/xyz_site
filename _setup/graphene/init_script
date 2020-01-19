@@ -15,8 +15,9 @@ PATH=/bin:/usr/bin:/sbin:/usr/sbin
 DESC="graphene_http: SimpleJson data source for Graphene database"
 NAME=graphene_{{item.name}}
 DAEMON=/usr/bin/graphene_http
-PIDFILE=/var/run/graphene_{{item.name}}.pid
-DAEMON_OPTS="-f -d {{item.home}} -p {{item.port}} -P ${PIDFILE}1"
+PIDFILE={{item.home}}/.graphene.pid
+LOGFILE={{item.home}}/.graphene.log
+DAEMON_OPTS="-f -d {{item.home}} -p {{item.port}} -P ${PIDFILE} -l ${LOGFILE}"
 SCRIPTNAME=/etc/init.d/"$NAME"
 
 test -f $DAEMON || exit 0

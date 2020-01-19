@@ -3,7 +3,8 @@
   vars:
      datadir: "/mnt/data1/"
      del_items:
-       - "a"
+       - "db_lanc"
+       - "db_alena"
 
   tasks:
 

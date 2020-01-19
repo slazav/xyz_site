@@ -92,4 +92,4 @@ UsePAM yes
 GatewayPorts yes
 
 Match User db_*
-  AuthorizedKeysFile /etc/openssh/authorized_keys/%u
+  AuthorizedKeysFile /etc/ssh/authorized_keys/%u

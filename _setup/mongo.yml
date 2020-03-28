@@ -1,6 +1,7 @@
 ---
 - hosts: xyz
 
+  tasks:
   - name: restart Services
     service: name={{ item.name }} state=restarted enabled=yes
     with_items:

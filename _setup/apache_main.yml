@@ -17,6 +17,7 @@
       - { name: '{{ wwwdir }}/data/', mode: '0777'}
       - { name: '{{ wwwdir }}/logs/', mode: '0777'}
       - { name: '{{ wwwdir }}/cgi/', mode: '0755'}
+      - { name: '{{ wwwdir }}/data/sti/'  , mode: '0755'}
 
   - name: restart Services
     service: name={{ item.name }} state=restarted enabled=yes

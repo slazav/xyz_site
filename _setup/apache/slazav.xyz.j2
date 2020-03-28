@@ -15,16 +15,19 @@
     AllowOverride None
   </Directory>
 
-  ScriptAlias /news  /var/www/test/cgi/news
-  ScriptAlias /pcat  /var/www/test/cgi/pcat
-  ScriptAlias /texts /var/www/test/cgi/texts
-  ScriptAlias /map   /var/www/test/cgi/map
-  ScriptAlias /users /var/www/test/cgi/users
-  ScriptAlias /help  /var/www/test/cgi/help
+  ScriptAlias /news  {{ wwwdir }}/cgi/news
+  ScriptAlias /pcat  {{ wwwdir }}/cgi/pcat
+  ScriptAlias /texts {{ wwwdir }}/cgi/texts
+  ScriptAlias /map   {{ wwwdir }}/cgi/map
+  ScriptAlias /users {{ wwwdir }}/cgi/users
+  ScriptAlias /help  {{ wwwdir }}/cgi/help
+  ScriptAlias /sti   {{ wwwdir }}/cgi/sti
 
   LogLevel warn
 
   <Directory "{{ wwwdir }}/cgi">
     Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
   </Directory>
+
+
 </VirtualHost>

@@ -671,7 +671,7 @@ sub show_object{
   else {
     $ret->{objects} = [];
     $ret->{num} = $pars->{num}||25;
-    $ret->{skip} = $pars->{skip}||0;
+    $ret->{skip} = 0+$pars->{skip}||0;
     $ret->{search} = $pars->{search} if $pars->{search};
     my $q = { 'del' => { '$exists' => 0 }, 'next' => { '$exists' => 0 } };
     $q->{'$text'} = {'$search' => $pars->{search}} if $pars->{search};

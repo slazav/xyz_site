@@ -1,4 +1,8 @@
 #!/usr/bin/perl
+
+use FindBin;
+use lib $FindBin::Bin;
+
 use warnings;
 use strict;
 use safe_html;

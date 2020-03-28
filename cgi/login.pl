@@ -19,6 +19,9 @@
 
 ################################################
 
+use FindBin;
+use lib $FindBin::Bin;
+
 use strict;
 use warnings;
 use MongoDB;

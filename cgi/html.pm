@@ -308,6 +308,7 @@ sub print_news {
   my $o       = shift;
   my $baseurl = shift;
   my $style   = shift || 'full'; # full, short, title
+  my $coll    = 'news';
 
   # cleanup all the data to have safe html
   my $title = cleanup_txt($o->{title});
@@ -329,6 +330,10 @@ sub print_news {
   print "<div class='title'>$title</div>\n";
   print "<div class='obj_body'>$text</div>\n" if style ne 'title';
 
+#  print_info_panel($o, $baseurl, 'full');
+#  print_comments $coll, $o, $c, $me;
+#    if $style eq 'full';
+
 }
 
 
@@ -338,6 +343,7 @@ sub print_pcat {
   my $o       = shift;
   my $baseurl = shift;
   my $style   = shift; # full, short, title
+  my $coll    = 'pcat';
 
   # cleanup all the data to have safe html
   my $title = cleanup_txt($o->{title});
@@ -366,10 +372,12 @@ sub print_pcat {
     $text  =~ s|<lj-cut[^>]*>.*?</lj-cut>|<a href="${baseurl}id=$o->{_id}">(подробнее...)</a>|gs;
   }
 
-  print "<div class='title'>$icons$d: $title</div>\n";
+  my $obtn = "<a href='javascript:switch_id(\"$coll:$o->{_id}\")' id='obtn:$coll:$o->{_id}'>[открыть]</a>";
+
+  print "<div class='title'>$icons$d: $title $obtn</div>\n";
 
   if (style ne 'title'){
-    print "<div class='obj_body'>$text</div>\n";
+    print "<div class='obj_body hidden' id='$coll:$o->{_id}'>$text</div>\n";
 
     if ($o->{refs}){
       print "<ul class='refs'>\n";
@@ -378,6 +386,9 @@ sub print_pcat {
       }
       print "</ul>\n";
     }
+#    print_info_panel($o, $baseurl, 'full');
+#    print_comments $coll, $o, $c, $me;
+#      if $style eq 'full';
   }
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Get user list.
+# Get user list in JSON.
 #
 # Input  -- session
 #  user level should be >=LEVEL_MODER
@@ -12,6 +12,9 @@
 #     is added with with possible level values
 
 ################################################
+
+use FindBin;
+use lib $FindBin::Bin;
 
 use strict;
 use warnings;

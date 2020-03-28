@@ -1,0 +1,757 @@
+#!/usr/bin/perl
+
+use FindBin;
+use lib $FindBin::Bin;
+
+use warnings;
+use strict;
+use auth;
+use Data::Dumper;
+use Digest::MD5 'md5_hex';
+
+use CGI ':standard';
+my $datadir="/usr/home/sla/sti";
+#my $datadir="/usr/home/sla/sti";
+
+# TODO -- allow_others
+# TODO -- test variants (me, users)
+# TODO -- dump
+
+############################################################
+
+sub sti_head{
+print <<EOF
+<html>
+  <head>
+    <style>
+      * {font-family: sans-serif;}
+      th {vertical-align: top; text-align: right; font-weight:normal;}
+      td {vertical-align: top; font-weight:normal;}
+      a  {color: blue; text-decoration:none;}
+      tr.new      {background-color:#D0D0FF;}
+      tr.guess    {background-color:#E0E0FF;}
+      tr.complete {background-color:#F0F0FF;}
+      input {align: font-family: sans-serif;}
+    </style>
+    <title>
+      STI SERVER!
+    </title>
+  <head>
+  <body>
+EOF
+;
+}
+
+sub sti_tail{
+  my $msg=shift;
+  my $ref=shift;
+
+  sti_msg($msg) if $msg;
+  print "<p><a href=\"sti.pl\">Вернуться к оглавлению игр...</a>" if $ref;
+
+  print <<EOF
+    <div align=right><i>игра в стихи, slazav at narod.ru, 2009<br>
+     обсуждение возможно в сообществе
+     <a href="http://community.livejournal.com/stiho_tvorenie/">
+     stiho_tvorenie at lj</a></i></div>
+  </body>
+</html>
+EOF
+;
+exit 0;
+}
+
+sub sti_msg{
+  my $msg=shift;
+  print "<p><font color=\"red\" size=\"+1\">$msg</font></p>\n" if $msg;
+}
+
+############################################################
+
+sub sti_list{
+  my $user=shift;
+  my $login_form=auth::form($user, 'sti.pl');
+
+  print "<div align=right>$login_form</div>\n";
+
+  opendir DIR, $datadir or
+    sti_tail("Ошибка: нет каталога с играми.", 1);
+
+  print qq*
+    <h3>Список игр:</h3>
+    <table border=0 cellpadding=5 cellspacing=0>\n*;
+  foreach (sort {$b cmp $a} (grep { !/^\./ } readdir(DIR))){
+    my $id=$_;
+    my $st=sti_read($id);
+    $st->{text}=~s|\n+$||;
+    $st->{text}=~s|\n|<br>\n|g;
+    my $u=${$st->{vars}}[0]->{user};
+
+    my $status='';
+    my $dt=$st->{dt}?", еще $st->{dt} ч":'';
+
+    if ($st->{status} eq 'new'){
+      $status = qq*
+        принимаются варианты$dt<br>
+        <font size="-1">вариантов: $st->{n1}
+        </font>\n*;
+    }
+    elsif ($st->{status} eq 'guess'){
+      $status = qq*
+        угадывание$dt<br>
+        <font size="-1">вариантов: $st->{n1}, догадок: $st->{n2}
+        </font>\n*;
+    }
+    else{
+      $status = qq*
+        игра окончена<br>
+        <font size="-1">вариантов: $st->{n1}, догадок: $st->{n2}
+        </font>\n*;
+    }
+    print qq*
+      <tr class="$st->{status}"><td>$u<br><font size="-1">$id</font></td>
+          <td width=10px></td>
+          <td><a href="sti.pl?id=$id">$st->{text}</a></td>
+          <td width=10px></td>
+          <td>$status</td>
+      </tr>\n*;
+#    print "<p><pre><tt>".Dumper($st)."</tt></pre>\n";
+  }
+  close DIR;
+  print qq*
+    </table>\n*;
+
+  print "<p><a href=\"sti.pl?id=new\">Начать новую игру...</a>\n"
+    if $user ne '';
+}
+
+sub sti_get_new{
+  my $st={};
+  $st->{text}=escapeHTML(param('text'));
+  $st->{auth}=escapeHTML(param('auth'));
+  $st->{t1}=escapeHTML(param('t1'));
+  $st->{t2}=escapeHTML(param('t2'));
+  $st->{n1min}=escapeHTML(param('n1min'));
+  $st->{n1max}=escapeHTML(param('n1max')); 
+  $st->{n1u}=escapeHTML(param('n1u'));
+  $st->{n2min}=escapeHTML(param('n2min'));
+  $st->{allow_others}=defined param('allow_others')?'on':'';
+
+  $st->{t1}=48 if $st->{t1} eq '';
+  $st->{t2}=48 if $st->{t2} eq '';
+  $st->{n1min}=3  if $st->{n1min} eq '';
+  $st->{n1max}=20 if $st->{n1max} eq '';
+  $st->{n1u}=2 if $st->{n1u} eq '';
+  $st->{n2min}=3 if $st->{n2min} eq '';
+
+  $st->{text}=~tr/\r//d;
+  $st->{auth}=~tr/\r//d;
+  $st->{auth}=~tr/\n/ /d;
+  $st->{auth}=~tr/\"/\'/;
+
+  $st->{error}="пустое начало" unless $st->{text} ne '';
+  $st->{error}="срок первого этапа -- не число" unless $st->{t1}=~/^\d+$/;
+  $st->{error}="срок второго этапа -- не число" unless $st->{t2}=~/^\d+$/;
+  $st->{error}="минимальное число игроков на первом этапе -- не число"
+    unless $st->{n1min}=~/^\d+$/;
+  $st->{error}="максимальное число игроков на первом этапе -- не число"
+    unless $st->{n1max}=~/^\d+$/;
+  $st->{error}="максимальное число вариантов от одного игрока -- не число"
+    unless $st->{n1u}=~/^\d+$/;
+  $st->{error}="минимальное число отгадывающих -- не число"
+    unless $st->{n2min}=~/^\d+$/;
+
+  my $var=sti_get_var();
+  $var->{text} = $st->{text}."\n".$var->{text};
+
+  $var->{text}=~s/\n+/\n/g;
+  $st->{text}=~s/[\.,\-:;\!\?]+$//; # remove punctuation
+
+  $st->{vars}=();
+  push @{$st->{vars}}, $var;
+
+  return $st;
+}
+
+sub sti_get_var{
+  my $user=shift;
+  my $st=shift;
+  my $var={};
+  $var->{text}=escapeHTML(param('var_text'));
+  $var->{text}=~tr/\r//d;
+
+  if ($st){
+    my $beginning=$st->{text};
+    $beginning=~s/\n+$//g;
+    $var->{error}="начало вашего варианта не совпадает с заданным"
+      unless $var->{text} =~ m<^$beginning[\.,\-:;\!\?]*\n.+>;
+
+    my $count = grep { $_->{user} eq $user } @{$st->{vars}};
+    $var->{error}="вы уже достаточно вариантов написали"
+      if ($count >= $st->{n1u});
+    $var->{error}="вы же ведущий"
+      if ($user eq $st->{vars}->[0]->{user});
+  }
+  return $var;
+}
+
+sub sti_get_guess{
+  my $user=shift;
+  my $st=shift;
+  my $guess={};
+
+  my $i=0;
+  my @d; # fixing order
+  foreach (sort { $a->{key} cmp $b->{key} } @{$st->{vars}}){
+    $d[$_->{n}]=param("var$i");
+    $i++;
+  }
+
+  $guess->{data} = \@d;
+#  $guess->{best} = param("best");
+
+  $guess->{error}="вы же ведущий"
+    if ($user eq $st->{vars}->[0]->{user});
+
+  $guess->{error}="вы уже угадывали"
+    if (exists $st->{guesses}->{$user});
+
+  my $other='yes';
+  my @tmp=@d;
+
+  for (my $i=0; $i <= $#{$st->{vars}}; $i++){
+    my $v=$st->{vars}->[$i];
+    if ($v->{user} eq $user){
+      $other='';
+      $guess->{error}="ложная догадка о себе"
+        if ($d[$i] ne $user);
+    }
+    my $u = ($i==0)? 'А': $v->{user};
+    for (my $j=0; $j <= $#tmp; $j++){
+      next unless $tmp[$j] eq $u;
+      $tmp[$j] = '';
+      last;
+    }
+  }
+
+  $guess->{error}="не придумавшем своего варианта угадывать не позволено"
+    if $other && !$st->{allow_others};
+
+  foreach (@tmp){
+    $guess->{error}="неизвестный/лишний автор: $_" if $_ ne '';
+  }
+
+  return $guess;
+}
+
+sub sti_read{
+  my $id=shift;
+  my $st={};
+
+  open IN, "$datadir/$id" or
+    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+
+  my $nvar=-1;
+  my $var;
+  my $mode;
+  foreach (<IN>){
+    if (/^\s*<game/){
+      $mode='game';
+      if (/ t1=\"(\d+)\"/)    {$st->{t1}=$1;}
+      if (/ n1min=\"(\d+)\"/) {$st->{n1min}=$1;}
+      if (/ n1max=\"(\d+)\"/) {$st->{n1max}=$1;}
+      if (/ n1u=\"(\d+)\"/)   {$st->{n1u}=$1;}
+      if (/ t2=\"(\d+)\"/)    {$st->{t2}=$1;}
+      if (/ n2min=\"(\d+)\"/) {$st->{n2min}=$1;}
+      if (/ auth=\"([^\"]+)\"/)  {$st->{auth}=$1;}
+      if (/ allow_other/)        {$st->{allow_other}='on';}
+      $st->{text}='';
+    }
+    elsif (/^\s*<var/){
+      $mode='var';
+      $var={};
+      push @{$st->{vars}}, $var;
+      if (/ user=\"([^\"]+)\"/)  {$var->{user}=$1;}
+      if (/ time=\"(\d+)\"/)  {$var->{time}=$1;}
+    }
+    elsif (/^\s*<guess/){
+      next unless (/ user=\"([^\"]+)\"/);
+      $mode='guess';
+      my %guess;
+      ${$st->{guesses}}{$1} = \%guess;
+#      if (/ best=\"(\d+)\"/)    {$guess{best}=$1;}
+      if (/ data=\"([^\"]+)\"/) {$guess{data}=[split ',', $1];}
+    }
+    else{
+      next if (/^\s*$/);
+      if ($mode eq 'game'){
+        $st->{text}.=$_;
+      }
+      elsif ($mode eq 'var'){
+        $var->{text}.=$_;
+      }
+    }
+  }
+  close IN;
+
+  # calculate status
+  my $t0 = ${$st->{vars}}[0]->{time};
+  $st->{n1} = $#{$st->{vars}} + 1;
+  $st->{n2} = keys(%{$st->{guesses}});
+  my $t=time();
+
+  $st->{status}='new';
+  $st->{dt} = int($st->{t1} - ($t-$t0)/3600);
+
+  if (($st->{n1} >= $st->{n1min}) &&
+      (($st->{dt} < 0) || ($st->{n1} >= $st->{n1max}))) {
+    $st->{status}='guess';
+    $st->{dt} = int($st->{t2} + $st->{t1} - ($t-$t0)/3600);
+  }
+  if (($st->{n1} >= $st->{n1min}) &&
+      ($st->{n2} >= $st->{n2min}) &&
+      ($t0 + ($st->{t1} + $st->{t2})*3600 < $t)){
+    $st->{status}='complete';
+    $st->{dt}=0;
+  }
+  $st->{dt}=0 if $st->{dt} < 0;
+
+  if ($st->{status} eq 'guess'){
+    for (my $i=0; $i <= $#{$st->{vars}}; $i++){
+      my $v=$st->{vars}->[$i];
+      $v->{key}=md5_hex($v->{user}.$v->{time});
+      $v->{n}=$i;
+    }
+  }
+  $st->{id}=$id;
+
+  return $st;
+}
+
+sub sti_new_form{
+  my $user=shift;
+  my $st=shift;
+  my $var=shift;
+  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+    if ($user eq '');
+
+  my $allow_others=($st->{allow_others} ne '')?' value=on':'';
+
+  print <<EOF
+  <form action="" method=GET>
+    <input type="hidden" name="id" value="new">
+    <p><table>
+      <tr>
+        <td colspan=3><h4>Создание новой игры:</h4></td>
+      </tr>
+      <tr>
+        <th>Ведущий:</td>
+  	<td>$user</td>
+  	<td></td>
+      </tr>
+      <tr>
+        <th>Начало:</td>
+  	<td><textarea name=text cols=50 rows=5/>$st->{text}</textarea></td>
+  	<td>Начало стихотворения, которое будет предложено
+            продолжить участникам. Следует указать авторский знак
+  	    препинанания в конце отрывка, он не будет показан
+  	    на первом этапе игры</td>
+      </tr>
+      <tr>
+        <th align=right valign=top>Продолжение:</td>
+  	<td><textarea name=var_text cols=50 rows=5>$var->{text}</textarea></td>
+  	<td>Авторский вариант продолжения</td>
+      </tr>
+      <tr>
+        <th align=right valign=top>Автор:</td>
+  	<td><input type=text name=auth size=50 maxlength=50 value=$st->{auth}></td>
+  	<td>Автор не будет открыт до объявления результатов</td>
+      </tr>
+    </table>
+    <p><table>
+      <tr>
+        <td colspan=2><h4>Условия первого этапа игры:</h4></td>
+      </tr>
+      <tr>
+  	<th><input type=text name=t1 size=3 maxlength=3 value=$st->{t1}></td>
+  	<td>Срок придумывания вариантов, в часах. Через это время все
+  	    варианты будут открыты (если их число достигнет указанного
+  	    ниже минимального значения) и игра перейдет ко второму этапу</td>
+      </tr>
+      <tr>
+  	<th><input type=text name=n1max size=3 maxlength=3 value=$st->{n1max}></td>
+  	<td>Максимальное количество вариантов (включая авторский). При
+  	    достижении этого числа вариантов первый этап игры закончится
+  	    раньше срока</td>
+      </tr>
+      <tr>
+  	<th><input type=text name=n1min size=3 maxlength=3 value=$st->{n1min}></td>
+  	<td>Минимальное количество вариантов (включая авторский).
+  	    Первый этап игры не закончится, пока не будет набрано
+  	    указанное количество вариантов</td>
+      </tr>
+      <tr>
+  	<th><input type=text name=n1u size=3 maxlength=3 value=$st->{n1u}></td>
+  	<td>Максимальное число вариантов от одного участника</td>
+      </tr>
+      <tr>
+        <td colspan=2><br><h4>Условия второго этапа игры:</h4></td>
+      </tr>
+      <tr>
+  	<th><input type=text name=t2 size=3 maxlength=3 value=$st->{t2}></td>
+  	<td>Срок отгадывания вариантов, в часах. Через это время от начала
+  	    второго этапа результаты будут открыты (если число отгадывавших
+  	    достигнет указанного ниже минимального значения) и игра
+  	    закончится</td>
+      </tr>
+      <tr>
+  	<th><input type=text name=n2min size=3 maxlength=3 value=$st->{n2min}></td>
+  	<td>Минимальное число отгадывающих. Второй этап игры не закончится,
+  	    пока число отгадывающих не достигнет этого значения</td>
+      </tr>
+      <tr>
+  	<th><input type=checkbox name=allow_others size=3 maxlength=3 $allow_others></td>
+  	<td>Разрешать угадывать тем, кто не давал своего варианта</td>
+      </tr>
+    </table>
+
+    <p><div align=center>
+      <input type="submit" name="submit" value="Начать игру!">
+      </div>
+    </form>
+EOF
+;
+}
+
+sub sti_var_form{
+  my $user=shift;
+  my $st=shift;
+  my $var=shift;
+
+  my $ld=${$st->{vars}}[0]->{user};
+  print "<b>Ведущий:</b> $ld\n";
+  print "<h4>Начало:</h4>\n";
+  print "<pre>$st->{text}    ...</pre>\n";
+
+  my $n=0;
+ printf qq*
+  <h4>Параметры игры:</h4>
+  <ul>
+  <li>Ограничение количества вариантов: от $st->{n1min} до $st->{n1max} шт
+  <li>От одного игрока принимается не более: $st->{n1u} шт
+  <li>До конца приема вариантов осталось: $st->{dt} ч
+  <li>Прислано вариантов: $st->{n1} (%s)
+  </ul>\n*, join ', ', (map { ($n++)==0?'А':$_->{user} } @{$st->{vars}});
+
+  my $count = grep { $_->{user} eq $user } @{$st->{vars}};
+  sti_tail('Игра продолжается!',1) if ($user eq '');
+  sti_tail('Ваша игра продолжается!',1) if ($user eq $ld);
+  sti_tail('Игра продолжается, а вы уже достаточно вариантов написали!',1)
+    if ($count >= $st->{n1u});
+
+  print <<EOF
+  <form action="" method=GET>
+    <input type="hidden" name="id" value="$st->{id}">
+    <p><table>
+      <tr>
+        <td colspan=2><h4>Добавьте свое продолжение:</h4></td>
+      </tr>
+      <tr>
+        <th>Игрок:</td>
+  	<td>$user</td>
+      </tr>
+      <tr>
+        <th align=right valign=top>Ваш&nbsp;вариант:</td>
+  	<td><textarea name=var_text cols=50 rows=5>$var->{text}</textarea>
+  	 <p>Введите ваш вариант стиха, начало и продолжение. Начало вашего
+            варианта должно совпадать с заданным с точностью до знака
+            препинания после него</td>
+      </tr>
+    </table>
+    <p><div align=center>
+      <input type="submit" name="submit" value="Добавить продолжение!">
+      </div>
+    </form>
+EOF
+;
+}
+
+sub sti_guess_form{
+  my $user=shift;
+  my $st=shift;
+  my $guess=shift;
+
+  my $ld=$st->{vars}->[0]->{user};
+  $st->{vars}->[0]->{user}='А';
+
+  my $form=($user ne '') && (!exists $st->{guesses}->{$user});
+
+  print qq*
+    <b>Ведущий:</b> $ld
+    <h4>Авторы вариантов (в порядке поступления вариантов):</h4>
+    <ul>\n*;
+
+  for (my $i=0; $i <= $#{$st->{vars}}; $i++){
+    printf "<li>$st->{vars}->[$i]->{user}\n";
+  }
+  print "</ul>\n";
+
+  print qq*
+    <form action="" method=GET>
+    <input type="hidden" name="id" value="$st->{id}">\n*
+    if $form;
+
+  print qq*
+    <h4>Варианты (в перепутанном порядке):</h4>
+    <p><table border=0 cellpadding=5 cellspacing=0>\n*;
+
+  my $i=0;
+  foreach (sort { $a->{key} cmp $b->{key} } @{$st->{vars}}){
+    my $input='';
+    $input="\n<td><input type=\"text\" name=\"var$i\" value=\"${$guess->{data}}[$_->{n}]\"></td>"
+      if $form;
+    $input="\n<td><input disabled type=\"text\" name=\"\" value=\"$user\">".
+           "<input type=\"hidden\" name=\"var$i\" value=\"$user\"></td>"
+      if $form && $user eq $_->{user};
+
+#    my $best='';
+#    $best="\n<th><input type=\"radio\" name=\"best\" value=\"$i\"></th>"
+#      if $user ne '';
+#    $best="\n<th><input type=\"radio\" name=\"best\" value=\"$i\" disabled></th>"
+#      if $user eq $_->{user};
+
+    $i++;
+    print qq*
+      <tr>
+        <td>$i</td>
+        <td><pre>$_->{text}</pre></td>$input
+      </tr>\n*;
+  }
+  print "</table>\n";
+
+  print qq*
+    <p><div align=center>
+      <input type="submit" name="submit" value="Я угадаю всех!"></div>
+    </form>\n* if $form;
+}
+
+sub sti_write_new{
+  my $user=shift;
+  my $st=shift;
+  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+    if ($user eq '');
+
+  my $time=time();
+  my ($day, $mon, $year) = (localtime())[3,4,5];
+  my $idbase=sprintf "%04d-%02d-%02d", $year+1900, $mon+1, $day;
+  my $id=$idbase;
+  my $i=0;
+  while( -f "$datadir/$id" ){ $i++; $id=$idbase.'_'.$i; }
+
+  open OUT, "> $datadir/$id" or
+    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+
+  my $allow_others = $st->{allow_others} ? ' allow_others':'';
+  print OUT "<game t1=\"$st->{t1}\" n1min=\"$st->{n1min}\" n1max=\"$st->{n1max}\" ".
+            "n1u=\"$st->{n1u}\" t2=\"$st->{t2}\" n2min=\"$st->{n2min}\" ".
+            "auth=\"$st->{auth}\"$allow_others>\n".
+            $st->{text}. "\n";
+
+  close OUT;
+  return $id;
+}
+
+sub sti_write_var{
+  my $user=shift;
+  my $id=shift;
+  my $var=shift;
+  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+    if ($user eq '');
+
+  my $time=time();
+  open OUT, ">> $datadir/$id" or
+    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+
+  print OUT "<var user=\"$user\" time=\"$time\">\n".
+            $var->{text}. "\n";
+  close OUT;
+}
+
+sub sti_write_guess{
+  my $user=shift;
+  my $id=shift;
+  my $guess=shift;
+  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+    if ($user eq '');
+
+  my $time=time();
+  open OUT, ">> $datadir/$id" or
+    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+
+  my $data=join ',', @{$guess->{data}};
+  print OUT "<guess user=\"$user\" best=\"$guess->{best}\" ".
+            "time=\"$time\" data=\"$data\">\n";
+  close OUT;
+}
+
+sub sti_print_res{
+  my $st=shift;
+  my %r;
+  my %r1;
+  my %r2;
+
+  print "<b>Ведущий: ${$st->{vars}}[0]->{user}";
+  print ", игра: $st->{id}</b>";
+  print "<b>, автор: $st->{auth}</b>\n" if $st->{auth};
+
+  print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
+
+  print "<tr><td colspan=2><br></td>\n";
+  foreach (keys %{$st->{guesses}}){
+    print"<td align=center>$_</td>\n";
+    $r2{$_}=0;
+  }
+  print "<td align=center>за непохожесть<br>на себя</td></tr>\n";
+
+  my $leader=${$st->{vars}}[0]->{user};
+  ${$st->{vars}}[0]->{user}='А';
+
+  for (my $i=0; $i <= $#{$st->{vars}}; $i++){
+    my $var=${$st->{vars}}[$i];
+    print qq*
+      <tr>
+        <td>$var->{user}</td>
+        <td><pre>$var->{text}</pre></td>\n*;
+
+    $r1{$var->{user}}=0;
+    foreach (keys %{$st->{guesses}}){
+        my $g=${$st->{guesses}}{$_};
+        my $u=$g->{data}->[$i];
+        $u="-" unless $u;
+        $u="*" unless $_ ne $var->{user};
+        if ($var->{user} eq $u){
+          $u="<font color=red>$u</font>";
+          $r1{$var->{user}}--;
+          $r2{$_}++;
+          $r{$var->{user}}--;
+          $r{$_}++;
+        }
+        elsif (($u ne '-') && ($u ne '*')) {
+          $r1{$var->{user}}++;
+          $r2{$_}--;
+          $r{$var->{user}}++;
+          $r{$_}--;
+        }
+
+        print"<td width=50px align=center>$u</td>\n";
+    }
+
+    print qq*
+      <td align=center>$r1{$var->{user}}</td>
+      </tr>\n*;
+  }
+  print qq*
+    <tr>
+      <td><br></td>
+      <td align=right>за догадливость:</td>\n*;
+  foreach (keys %{$st->{guesses}}){
+    print"<td align=center>$r2{$_}</td>\n";
+  }
+  print qq*
+      <td><br></td>
+      </tr>
+    </table>\n*;
+
+
+  $r{$leader}=$r{${$st->{vars}}[0]->{user}};
+  delete($r{${$st->{vars}}[0]->{user}});
+
+  print qq*
+    <h4>Результаты:</h4>
+    <p><table border=0>\n*;
+
+  foreach (sort { $r{$b} <=> $r{$a} } keys %r){
+  printf qq*
+    <tr><td align=right>$_:</td><td align=right>%+d</td></tr>\n*, $r{$_};
+  }
+  print qq*
+    </table>\n*;
+
+  #TODO
+}
+
+
+############################################################
+
+my $user=auth::login();
+sti_head();
+
+my $id=param('id');
+my $submit=param('submit');
+if (!defined($id)){
+  sti_list($user);
+}
+elsif ($id eq 'new'){
+  my $st=sti_get_new();
+  my $var=${$st->{vars}}[0];
+  if (defined($submit)){
+    if ($st->{error} ne ''){
+      sti_msg($st->{error});
+      sti_new_form($user, $st, $var);
+    }
+    elsif ($var->{error} ne ''){
+      sti_msg("Ошибка: $var->{error}!");
+      sti_new_form($user, $st, $var);
+    }
+    else{
+      my $id=sti_write_new($user, $st);
+      sti_write_var($user, $id, $var);
+      sti_tail("<h3>Поздравляем, $user, игра началась!</h3>", 1);
+    }
+  }
+  else{
+    sti_new_form($user, $st, $var);
+  }
+}
+else{
+  my $st=sti_read($id);
+
+  if ($st->{status} eq 'new'){
+    my $var=sti_get_var($user, $st);
+
+    if (defined($submit)){
+      if ($var->{error} ne ''){
+        sti_msg("Ошибка: $var->{error}!");
+        sti_var_form($user, $st, $var);
+      }
+      else{
+        sti_write_var($user, $id, $var);
+        sti_tail('<h3>Ваш вариант продолжения добавлен!</h3>', 1);
+      }
+    }
+    else{
+      sti_var_form($user, $st, $var);
+    }
+  }
+  elsif ($st->{status} eq 'guess'){
+    my $guess=sti_get_guess($user, $st);
+
+    if (defined($submit)){
+      if ($guess->{error} ne ''){
+        sti_msg("Ошибка: $guess->{error}!");
+        sti_guess_form($user, $st, $guess);
+      }
+      else{
+        sti_write_guess($user, $id, $guess);
+        sti_tail('<h3>Ваши догадки записаны! Ждите результатов...</h3>', 1);
+      }
+    }
+    else{
+      sti_guess_form($user, $st, $guess);
+    }
+  }
+  else {
+    sti_print_res($st);
+  }
+}
+sti_tail('', defined($id)?1:'');

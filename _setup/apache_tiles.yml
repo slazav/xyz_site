@@ -1,13 +1,14 @@
-# configure Test site (no data)
+# configure Tiles site
 ---
 - hosts: xyz
-  vars_files:
-    - test_vars.yml
+  vars:
+    site:   'tiles.slazav.xyz'
+    wwwdir: '/var/www/tiles'
 
   tasks:
   - name: copy apache configuration
-    template: src=cfg/apache.conf.j2
-          dest=/etc/apache2/sites-enabled/{{ site }}.conf
+    template: src=apache/tiles.slazav.xyz.j2
+              dest=/etc/apache2/sites-enabled/{{ site }}.conf
 
   - name: create folders if needed
     file: name={{ item.name }} state=directory mode={{ item.mode }}

@@ -1,0 +1,19 @@
+# configuration for tiles.slazav.xyz
+
+<VirtualHost {{ site }}:80>
+  ServerAdmin webmasterr@localhost
+  ServerName {{ site }}:80
+  DocumentRoot "{{ wwwdir }}/html"
+  ErrorLog    {{ wwwdir }}/logs/http_errors.log
+  TransferLog {{ wwwdir }}/logs/http_access.log
+
+  AddDefaultCharset               KOI8-R
+
+  <Directory "{{ wwwdir }}/html">
+    Options Includes FollowSymLinks MultiViews
+    AllowOverride None
+  </Directory>
+
+  LogLevel warn
+
+</VirtualHost>

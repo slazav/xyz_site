@@ -1,12 +1,14 @@
-# configure Tiles site
+# configure Test site (no data)
 ---
 - hosts: xyz
-  vars_files:
-    - tiles_vars.yml
+  vars:
+    site: 'test.slazav.xyz'
+    wwwdir: '/var/www/test'
 
   tasks:
+    # use same configuration as main!
   - name: copy apache configuration
-    template: src=cfg/apache.conf.j2
+    template: src=apache/slazav.xyz.j2
           dest=/etc/apache2/sites-enabled/{{ site }}.conf
 
   - name: create folders if needed
@@ -17,7 +19,7 @@
       - { name: '{{ wwwdir }}/logs/', mode: '0777'}
       - { name: '{{ wwwdir }}/cgi/', mode: '0755'}
 
-  - name: restart Services
-    service: name={{ item.name }} state=restarted
+  - name: start Services
+    service: name={{ item.name }} state=restarted enabled=yes
     with_items:
       - { name: 'apache2' }

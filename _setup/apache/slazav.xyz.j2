@@ -1,0 +1,30 @@
+# configuration for slazav.xyz and test.slazav.xyz
+
+<VirtualHost {{ site }}:80>
+  ServerAdmin webmasterr@localhost
+  ServerName {{ site }}:80
+  DocumentRoot "{{ wwwdir }}/html"
+  ScriptAlias /cgi/ "{{ wwwdir }}/cgi/"
+  ErrorLog    {{ wwwdir }}/logs/http_errors.log
+  TransferLog {{ wwwdir }}/logs/http_access.log
+
+  AddDefaultCharset               KOI8-R
+
+  <Directory "{{ wwwdir }}/html">
+    Options Includes FollowSymLinks MultiViews
+    AllowOverride None
+  </Directory>
+
+  ScriptAlias /news  /var/www/test/cgi/news
+  ScriptAlias /pcat  /var/www/test/cgi/pcat
+  ScriptAlias /texts /var/www/test/cgi/texts
+  ScriptAlias /map   /var/www/test/cgi/map
+  ScriptAlias /users /var/www/test/cgi/users
+  ScriptAlias /help  /var/www/test/cgi/help
+
+  LogLevel warn
+
+  <Directory "{{ wwwdir }}/cgi">
+    Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+  </Directory>
+</VirtualHost>

@@ -1,13 +1,14 @@
 # configure Main site (no data)
 ---
 - hosts: xyz
-  vars_files:
-    - main_vars.yml
+  vars:
+    site: 'slazav.xyz'
+    wwwdir: '/var/www/main'
 
   tasks:
   - name: copy apache configuration
-    template: src=cfg/apache.conf.j2
-          dest=/etc/apache2/sites-enabled/{{ site }}.conf
+    template: src=apache/slazav.xyz.j2
+              dest=/etc/apache2/sites-enabled/{{ site }}.conf
 
   - name: create folders if needed
     file: name={{ item.name }} state=directory mode={{ item.mode }}
@@ -18,7 +19,6 @@
       - { name: '{{ wwwdir }}/cgi/', mode: '0755'}
 
   - name: restart Services
-    service: name={{ item.name }} state=restarted
+    service: name={{ item.name }} state=restarted enabled=yes
     with_items:
       - { name: 'apache2' }
-

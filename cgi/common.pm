@@ -12,7 +12,7 @@ BEGIN {
                    $LEVEL_ADMIN $LEVEL_SUPER
                    $usr_log $obj_log
                    write_log get_session open_db next_id
-                   get_my_info set_user_level user_list
+                   get_my_info get_user_info set_user_level user_list
                    check_perm
                    list_comments show_comment delete_comment screen_comment new_comment edit_comment
                    write_object delete_object show_object
@@ -110,6 +110,18 @@ sub get_my_info {
 
   my $users = $db->get_collection( 'users' );
   my $ret = $users->find_one({'sess'=>$sess}, { 'sess' => 0, 'info' => 0 });
+  return $ret;
+}
+
+############################################################
+# get user information by id
+sub get_user_info {
+  my $id = shift;
+  my $db = shift || open_db();
+
+  my $users = $db->get_collection( 'users' );
+  my $ret = $users->find_one({'_id'=>$id}, { 'sess' => 0, 'info' => 0 });
+  #die "can't find user" unless defined $ret;
   return $ret;
 }
 

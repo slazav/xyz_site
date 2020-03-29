@@ -80,7 +80,7 @@ try {
 
     die $data->{error}->{message} if $data->{error} && $data->{error}->{message};
     $name = $data->{name};
-    $id   = $data->{link};
+    $id   = "https://plus.google.com/" . $data->{id};
     $site = 'google';
   }
 
@@ -165,7 +165,7 @@ try {
   #### now we have user information
   # die on error
   die "Not enough user information"
-    if $id eq '' || $name eq '' || $site eq '';
+    unless $id && $name && $site;
 
   write_log($usr_log, "User: $name @ $site ($id)");
 

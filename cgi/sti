@@ -703,6 +703,7 @@ sub sti_print_res{
     my $v_shname = $st->{sh_names}->{$v_uid};
     $v_uid = $v_shname = 'A' if $i==0;
 
+    $r{$v_uid} = 0;
     print qq*
       <tr>
         <td>$v_shname</td>
@@ -761,6 +762,7 @@ sub sti_print_res{
       <td><br></td>
       <td align=right>за догадливость:</td>\n*;
   foreach (sort keys %{$st->{guesses}}){
+    my $r = $r2{$_} || 0;
     print"<td align=center>$r2{$_}</td>\n";
   }
   print qq*

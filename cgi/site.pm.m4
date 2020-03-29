@@ -9,7 +9,7 @@ BEGIN {
   our @ISA = qw(Exporter);
   our @EXPORT = qw(
     $usecgi
-    $site_url $site_wwwdir $database
+    $site_url $site_url_https $site_wwwdir $database
     $google_id $google_secret
     $facebook_id $facebook_secret
     $loginza_id  $loginza_secret
@@ -18,7 +18,9 @@ BEGIN {
 
 our $usecgi = 1;
 our $site_url        = 'SITE_URL';
+our $site_url_https  = 'SITE_URL_S';
 our $site_wwwdir     = 'SITE_WWWDIR';
+our $site_datadir    = 'SITE_WWWDIR/data';
 our $database        = 'DATABASE';
 
 our $facebook_id     = 'FACEBOOK_ID';

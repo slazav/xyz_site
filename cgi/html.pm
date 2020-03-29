@@ -64,7 +64,7 @@ sub mk_face {
 my $loginza_providers  = 'livejournal,facebook,vkontakte,yandex,google';
 
 my $facebook_login_url = 'https://www.facebook.com/dialog/oauth?'
-                       . "client_id=$facebook_id&redirect_uri=$site_url/cgi/login_fb.pl&response_type=code";
+                       . "client_id=$facebook_id&redirect_uri=$site_url_https/cgi/login_fb.pl&response_type=code";
 my $google_login_url   = 'https://accounts.google.com/o/oauth2/auth?'
                        . "redirect_uri=$site_url/cgi/login_google.pl&response_type=code&client_id=$google_id&"
                        . "scope=https://www.googleapis.com/auth/userinfo.profile";

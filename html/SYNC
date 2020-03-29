@@ -1,0 +1,3 @@
+m4 -D SITE_NAME=main ../defs.m4 defs.m4 site.js.m4 > site.js
+
+rsync -av --exclude '*.m4' --delete ./ xyzr:/var/www/main/html/

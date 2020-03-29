@@ -21,6 +21,7 @@
 
 use FindBin;
 use lib $FindBin::Bin;
+use Digest::SHA qw(hmac_sha256_hex);
 
 use strict;
 use warnings;
@@ -98,7 +99,7 @@ try {
     my $http = HTTP::Tiny->new();
     my $test_url = "https://graph.facebook.com/oauth/access_token?".
                    "client_id=$facebook_id&client_secret=$facebook_secret&".
-                   "redirect_uri=$site_url/cgi/login_fb.pl&".
+                   "redirect_uri=$site_url_https/cgi/login_fb.pl&".
                    "code=$code&scope=public_profile";
     $info = $http->get($test_url)->{content};
     write_log($usr_log, "Get Facebook token: $info");
@@ -106,9 +107,12 @@ try {
     my $token = $data->{access_token};
     die "Can't get access tocken from facebook" unless $token;
 
+    # make appsecret_proof
+    my $appsecret_proof = hmac_sha256_hex($token, $facebook_secret);
+
     # get user information
     $test_url = "https://graph.facebook.com/me?".
-                "access_token=$token";
+                "access_token=$token&appsecret_proof=$appsecret_proof";
     $info = $http->get($test_url)->{content};
     write_log($usr_log, "Get Facebook userinfo: $info");
     $data  = decode_json $info;

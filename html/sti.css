@@ -1,0 +1,8 @@
+/* * {font-family: sans-serif;} */
+th {vertical-align: top; text-align: right; font-weight:normal;}
+td {vertical-align: top; font-weight:normal;}
+a  {color: blue; text-decoration:none;}
+tr.new      {background-color:#D0D0FF;}
+tr.guess    {background-color:#E0E0FF;}
+tr.complete {background-color:#F0F0FF;}
+input {align: font-family: sans-serif;}

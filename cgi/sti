@@ -5,13 +5,19 @@ use lib $FindBin::Bin;
 
 use warnings;
 use strict;
-use auth;
+#use auth;
+use site;
+use common;
+use CGI '-utf8';
+use html;
+use utf8;
+
 use Data::Dumper;
 use Digest::MD5 'md5_hex';
 
 use CGI ':standard';
-my $datadir="/usr/home/sla/sti";
-#my $datadir="/usr/home/sla/sti";
+my $datadir="$site::site_datadir/sti";
+binmode STDOUT, ':encoding(UTF-8)';
 
 # TODO -- allow_others
 # TODO -- test variants (me, users)
@@ -19,41 +25,15 @@ my $datadir="/usr/home/sla/sti";
 
 ############################################################
 
-sub sti_head{
-print <<EOF
-<html>
-  <head>
-    <style>
-      * {font-family: sans-serif;}
-      th {vertical-align: top; text-align: right; font-weight:normal;}
-      td {vertical-align: top; font-weight:normal;}
-      a  {color: blue; text-decoration:none;}
-      tr.new      {background-color:#D0D0FF;}
-      tr.guess    {background-color:#E0E0FF;}
-      tr.complete {background-color:#F0F0FF;}
-      input {align: font-family: sans-serif;}
-    </style>
-    <title>
-      STI SERVER!
-    </title>
-  <head>
-  <body>
-EOF
-;
-}
-
 sub sti_tail{
   my $msg=shift;
   my $ref=shift;
 
   sti_msg($msg) if $msg;
-  print "<p><a href=\"sti.pl\">Вернуться к оглавлению игр...</a>" if $ref;
+  print "<p><a href=\"sti\">п▓п╣я─п╫я┐я┌я▄я│я▐ п╨ п╬пЁп╩п╟п╡п╩п╣п╫п╦я▌ п╦пЁя─...</a>" if $ref;
 
   print <<EOF
-    <div align=right><i>игра в стихи, slazav at narod.ru, 2009<br>
-     обсуждение возможно в сообществе
-     <a href="http://community.livejournal.com/stiho_tvorenie/">
-     stiho_tvorenie at lj</a></i></div>
+    <div align=right><i>п╦пЁя─п╟ п╡ я│я┌п╦я┘п╦, slazav at altlinux.org, 2009-2020</div>
   </body>
 </html>
 EOF
@@ -69,49 +49,54 @@ sub sti_msg{
 ############################################################
 
 sub sti_list{
-  my $user=shift;
-  my $login_form=auth::form($user, 'sti.pl');
-
-  print "<div align=right>$login_form</div>\n";
+  my $u=shift;
+  my $user = $u->{_id};
+#  my $login_form=auth::form($user, 'sti');
+#  print "<div align=right>$login_form</div>\n";
 
   opendir DIR, $datadir or
-    sti_tail("Ошибка: нет каталога с играми.", 1);
+    sti_tail("п·я┬п╦п╠п╨п╟: п╫п╣я┌ п╨п╟я┌п╟п╩п╬пЁп╟ я│ п╦пЁя─п╟п╪п╦.", 1);
+
+  print "<p><a href=\"sti?id=new\">п²п╟я┤п╟я┌я▄ п╫п╬п╡я┐я▌ п╦пЁя─я┐...</a>\n"
+    if $user;
 
   print qq*
-    <h3>Список игр:</h3>
     <table border=0 cellpadding=5 cellspacing=0>\n*;
   foreach (sort {$b cmp $a} (grep { !/^\./ } readdir(DIR))){
     my $id=$_;
     my $st=sti_read($id);
     $st->{text}=~s|\n+$||;
     $st->{text}=~s|\n|<br>\n|g;
-    my $u=${$st->{vars}}[0]->{user};
+
+    my $uid = ${$st->{vars}}[0]->{user};
+    my $u = get_user_info($uid);
+    my $face = mk_face($u) || $uid;
 
     my $status='';
-    my $dt=$st->{dt}?", еще $st->{dt} ч":'';
+    my $dt=$st->{dt}?", п╣я┴п╣ $st->{dt} я┤":'';
 
     if ($st->{status} eq 'new'){
       $status = qq*
-        принимаются варианты$dt<br>
-        <font size="-1">вариантов: $st->{n1}
+        п©я─п╦п╫п╦п╪п╟я▌я┌я│я▐ п╡п╟я─п╦п╟п╫я┌я▀$dt<br>
+        <font size="-1">п╡п╟я─п╦п╟п╫я┌п╬п╡: $st->{n1}
         </font>\n*;
     }
     elsif ($st->{status} eq 'guess'){
       $status = qq*
-        угадывание$dt<br>
-        <font size="-1">вариантов: $st->{n1}, догадок: $st->{n2}
+        я┐пЁп╟п╢я▀п╡п╟п╫п╦п╣$dt<br>
+        <font size="-1">п╡п╟я─п╦п╟п╫я┌п╬п╡: $st->{n1}, п╢п╬пЁп╟п╢п╬п╨: $st->{n2}
         </font>\n*;
     }
     else{
       $status = qq*
-        игра окончена<br>
-        <font size="-1">вариантов: $st->{n1}, догадок: $st->{n2}
+        п╦пЁя─п╟ п╬п╨п╬п╫я┤п╣п╫п╟<br>
+        <font size="-1">п╡п╟я─п╦п╟п╫я┌п╬п╡: $st->{n1}, п╢п╬пЁп╟п╢п╬п╨: $st->{n2}
         </font>\n*;
     }
     print qq*
-      <tr class="$st->{status}"><td>$u<br><font size="-1">$id</font></td>
+      <tr class="$st->{status}"><td>$face<br><font size="-1">$id</font></td>
           <td width=10px></td>
-          <td><a href="sti.pl?id=$id">$st->{text}</a></td>
+          <td><a href="sti?id=$id">$st->{text}</a></td>
           <td width=10px></td>
           <td>$status</td>
       </tr>\n*;
@@ -120,14 +105,11 @@ sub sti_list{
   close DIR;
   print qq*
     </table>\n*;
-
-  print "<p><a href=\"sti.pl?id=new\">Начать новую игру...</a>\n"
-    if $user ne '';
 }
 
 sub sti_get_new{
   my $st={};
-  $st->{text}=escapeHTML(param('text'));
+  $st->{text}=escapeHTML(param('text')||'');
   $st->{auth}=escapeHTML(param('auth'));
   $st->{t1}=escapeHTML(param('t1'));
   $st->{t2}=escapeHTML(param('t2'));
@@ -146,19 +128,19 @@ sub sti_get_new{
 
   $st->{text}=~tr/\r//d;
   $st->{auth}=~tr/\r//d;
-  $st->{auth}=~tr/\n/ /d;
+  $st->{auth}=~tr/\n//d;
   $st->{auth}=~tr/\"/\'/;
 
-  $st->{error}="пустое начало" unless $st->{text} ne '';
-  $st->{error}="срок первого этапа -- не число" unless $st->{t1}=~/^\d+$/;
-  $st->{error}="срок второго этапа -- не число" unless $st->{t2}=~/^\d+$/;
-  $st->{error}="минимальное число игроков на первом этапе -- не число"
+  $st->{error}="п©я┐я│я┌п╬п╣ п╫п╟я┤п╟п╩п╬" unless $st->{text} ne '';
+  $st->{error}="я│я─п╬п╨ п©п╣я─п╡п╬пЁп╬ я█я┌п╟п©п╟ -- п╫п╣ я┤п╦я│п╩п╬" unless $st->{t1}=~/^\d+$/;
+  $st->{error}="я│я─п╬п╨ п╡я┌п╬я─п╬пЁп╬ я█я┌п╟п©п╟ -- п╫п╣ я┤п╦я│п╩п╬" unless $st->{t2}=~/^\d+$/;
+  $st->{error}="п╪п╦п╫п╦п╪п╟п╩я▄п╫п╬п╣ я┤п╦я│п╩п╬ п╦пЁя─п╬п╨п╬п╡ п╫п╟ п©п╣я─п╡п╬п╪ я█я┌п╟п©п╣ -- п╫п╣ я┤п╦я│п╩п╬"
     unless $st->{n1min}=~/^\d+$/;
-  $st->{error}="максимальное число игроков на первом этапе -- не число"
+  $st->{error}="п╪п╟п╨я│п╦п╪п╟п╩я▄п╫п╬п╣ я┤п╦я│п╩п╬ п╦пЁя─п╬п╨п╬п╡ п╫п╟ п©п╣я─п╡п╬п╪ я█я┌п╟п©п╣ -- п╫п╣ я┤п╦я│п╩п╬"
     unless $st->{n1max}=~/^\d+$/;
-  $st->{error}="максимальное число вариантов от одного игрока -- не число"
+  $st->{error}="п╪п╟п╨я│п╦п╪п╟п╩я▄п╫п╬п╣ я┤п╦я│п╩п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡ п╬я┌ п╬п╢п╫п╬пЁп╬ п╦пЁя─п╬п╨п╟ -- п╫п╣ я┤п╦я│п╩п╬"
     unless $st->{n1u}=~/^\d+$/;
-  $st->{error}="минимальное число отгадывающих -- не число"
+  $st->{error}="п╪п╦п╫п╦п╪п╟п╩я▄п╫п╬п╣ я┤п╦я│п╩п╬ п╬я┌пЁп╟п╢я▀п╡п╟я▌я┴п╦я┘ -- п╫п╣ я┤п╦я│п╩п╬"
     unless $st->{n2min}=~/^\d+$/;
 
   my $var=sti_get_var();
@@ -174,46 +156,48 @@ sub sti_get_new{
 }
 
 sub sti_get_var{
-  my $user=shift;
+  my $u=shift;
+  my $user = $u->{_id};
   my $st=shift;
   my $var={};
-  $var->{text}=escapeHTML(param('var_text'));
+  $var->{text}=escapeHTML(param('var_text') || '');
   $var->{text}=~tr/\r//d;
 
   if ($st){
     my $beginning=$st->{text};
     $beginning=~s/\n+$//g;
-    $var->{error}="начало вашего варианта не совпадает с заданным"
+    $var->{error}="п╫п╟я┤п╟п╩п╬ п╡п╟я┬п╣пЁп╬ п╡п╟я─п╦п╟п╫я┌п╟ п╫п╣ я│п╬п╡п©п╟п╢п╟п╣я┌ я│ п╥п╟п╢п╟п╫п╫я▀п╪"
       unless $var->{text} =~ m<^$beginning[\.,\-:;\!\?]*\n.+>;
 
     my $count = grep { $_->{user} eq $user } @{$st->{vars}};
-    $var->{error}="вы уже достаточно вариантов написали"
+    $var->{error}="п╡я▀ я┐п╤п╣ п╢п╬я│я┌п╟я┌п╬я┤п╫п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡ п╫п╟п©п╦я│п╟п╩п╦"
       if ($count >= $st->{n1u});
-    $var->{error}="вы же ведущий"
+    $var->{error}="п╡я▀ п╤п╣ п╡п╣п╢я┐я┴п╦п╧"
       if ($user eq $st->{vars}->[0]->{user});
   }
   return $var;
 }
 
 sub sti_get_guess{
-  my $user=shift;
+  my $u=shift;
+  my $user = $u->{_id};
   my $st=shift;
   my $guess={};
 
   my $i=0;
   my @d; # fixing order
   foreach (sort { $a->{key} cmp $b->{key} } @{$st->{vars}}){
-    $d[$_->{n}]=param("var$i");
+    $d[$_->{n}]=param("var$i") || '';
     $i++;
   }
 
   $guess->{data} = \@d;
 #  $guess->{best} = param("best");
 
-  $guess->{error}="вы же ведущий"
+  $guess->{error}="п╡я▀ п╤п╣ п╡п╣п╢я┐я┴п╦п╧"
     if ($user eq $st->{vars}->[0]->{user});
 
-  $guess->{error}="вы уже угадывали"
+  $guess->{error}="п╡я▀ я┐п╤п╣ я┐пЁп╟п╢я▀п╡п╟п╩п╦"
     if (exists $st->{guesses}->{$user});
 
   my $other='yes';
@@ -223,10 +207,10 @@ sub sti_get_guess{
     my $v=$st->{vars}->[$i];
     if ($v->{user} eq $user){
       $other='';
-      $guess->{error}="ложная догадка о себе"
+      $guess->{error}="п╩п╬п╤п╫п╟я▐ п╢п╬пЁп╟п╢п╨п╟ п╬ я│п╣п╠п╣"
         if ($d[$i] ne $user);
     }
-    my $u = ($i==0)? 'А': $v->{user};
+    my $u = ($i==0)? 'A': $v->{user};
     for (my $j=0; $j <= $#tmp; $j++){
       next unless $tmp[$j] eq $u;
       $tmp[$j] = '';
@@ -234,26 +218,40 @@ sub sti_get_guess{
     }
   }
 
-  $guess->{error}="не придумавшем своего варианта угадывать не позволено"
+  $guess->{error}="п╫п╣ п©я─п╦п╢я┐п╪п╟п╡я┬п╦п╪ я│п╡п╬п╣пЁп╬ п╡п╟я─п╦п╟п╫я┌п╟ я┐пЁп╟п╢я▀п╡п╟я┌я▄ п╫п╣ п©п╬п╥п╡п╬п╩п╣п╫п╬"
     if $other && !$st->{allow_others};
 
   foreach (@tmp){
-    $guess->{error}="неизвестный/лишний автор: $_" if $_ ne '';
+    $guess->{error}="п╫п╣п╦п╥п╡п╣я│я┌п╫я▀п╧/п╩п╦я┬п╫п╦п╧ п╟п╡я┌п╬я─: $_" if $_;
   }
 
   return $guess;
 }
 
+# п©я─п╬я┤п╦я┌п╟я┌я▄ я└п╟п╧п╩ я│ п╦пЁя─п╬п╧
 sub sti_read{
   my $id=shift;
-  my $st={};
+  my $st={
+    t1=>48,
+    n1min=>3,
+    n1max=>20,
+    n1u=>2,
+    t2=>48,
+    n2min=>3,
+    auth=>'',
+    allow_other=>'off',
+  };
 
   open IN, "$datadir/$id" or
-    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+    sti_tail("п·я┬п╦п╠п╨п╟: я└п╟п╧п╩ $datadir/$id п╫п╣ п╬я┌п╨я─я▀п╡п╟п╣я┌я│я▐.", 1);
+  binmode IN, ':encoding(UTF-8)';
 
   my $nvar=-1;
   my $var;
-  my $mode;
+  my $mode = '';
+
+  my %names;    # all users: id -> name
+
   foreach (<IN>){
     if (/^\s*<game/){
       $mode='game';
@@ -271,14 +269,20 @@ sub sti_read{
       $mode='var';
       $var={};
       push @{$st->{vars}}, $var;
-      if (/ user=\"([^\"]+)\"/)  {$var->{user}=$1;}
+      if (/ user=\"([^\"]+)\"/)  {
+        $var->{user} = $1; # user id
+        $names{$1} = '';
+      }
       if (/ time=\"(\d+)\"/)  {$var->{time}=$1;}
     }
     elsif (/^\s*<guess/){
       next unless (/ user=\"([^\"]+)\"/);
       $mode='guess';
       my %guess;
-      ${$st->{guesses}}{$1} = \%guess;
+
+      my $id = $1;
+      $names{$id} = '';
+      ${$st->{guesses}}{$id} = \%guess;
 #      if (/ best=\"(\d+)\"/)    {$guess{best}=$1;}
       if (/ data=\"([^\"]+)\"/) {$guess{data}=[split ',', $1];}
     }
@@ -301,13 +305,15 @@ sub sti_read{
   my $t=time();
 
   $st->{status}='new';
-  $st->{dt} = int($st->{t1} - ($t-$t0)/3600);
+  $st->{dt} = int($st->{t1} - ($t-$t0)/3600) + 1;
 
+  # п╡ п©я─п╬я├п╣я│я│п╣ я┐пЁп╟п╢я▀п╡п╟п╫п╦я▐
   if (($st->{n1} >= $st->{n1min}) &&
-      (($st->{dt} < 0) || ($st->{n1} >= $st->{n1max}))) {
+      ($st->{dt} <0 || ($st->{n1} >= $st->{n1max}))) {
     $st->{status}='guess';
     $st->{dt} = int($st->{t2} + $st->{t1} - ($t-$t0)/3600);
   }
+  # п╦пЁя─п╟ п╥п╟п╡п╣я─я┬п╣п╫п╟
   if (($st->{n1} >= $st->{n1min}) &&
       ($st->{n2} >= $st->{n2min}) &&
       ($t0 + ($st->{t1} + $st->{t2})*3600 < $t)){
@@ -319,104 +325,134 @@ sub sti_read{
   if ($st->{status} eq 'guess'){
     for (my $i=0; $i <= $#{$st->{vars}}; $i++){
       my $v=$st->{vars}->[$i];
-      $v->{key}=md5_hex($v->{user}.$v->{time});
+      $v->{key}=md5_hex($i.$v->{time});
       $v->{n}=$i;
     }
   }
   $st->{id}=$id;
 
+  # find user names, make short names
+  my %sh_names; # all users: id -> short name
+  my %tmp;
+  foreach (keys %names) {
+    my $u = get_user_info($_);
+    my $n = $u->{name} || $_;
+    $names{$_} = $n;
+
+    my $sn = $n;
+    if ($n =~ /(\P{Z})\S*\s+(\P{Z})/) {
+      $sn = $1.$2;
+    }
+    elsif ($n =~ /(\P{Z}\P{Z})/) {
+      $sn = $1;
+    }
+    my $sn0 = $sn;
+    my $i = 0;
+    while (exists $tmp{$sn}) {
+      $i++;
+      $sn = $sn0 . "$i";
+    }
+    $sh_names{$_} = $sn;
+    $tmp{$sn} = '';
+  }
+  $st->{names} = {%names};
+  $st->{sh_names} = {%sh_names};
+
   return $st;
 }
 
 sub sti_new_form{
-  my $user=shift;
+  my $u=shift;
+  my $user = $u->{_id};
   my $st=shift;
   my $var=shift;
-  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+  sti_tail("п▓п╟я┬п╣ п╦п╪я▐ п╫п╣п╦п╥п╡п╣я│я┌п╫п╬. п▓п╬п╧п╢п╦я┌п╣ п╡ я│п╦я│я┌п╣п╪я┐, я┤я┌п╬п╠я▀ п╫п╟я┤п╟я┌я▄ п╫п╬п╡я┐я▌ п╦пЁя─я┐!")
     if ($user eq '');
 
   my $allow_others=($st->{allow_others} ne '')?' value=on':'';
+
+  my $face = mk_face($u);
 
   print <<EOF
   <form action="" method=GET>
     <input type="hidden" name="id" value="new">
     <p><table>
       <tr>
-        <td colspan=3><h4>Создание новой игры:</h4></td>
+        <td colspan=3><h4>п║п╬п╥п╢п╟п╫п╦п╣ п╫п╬п╡п╬п╧ п╦пЁя─я▀:</h4></td>
       </tr>
       <tr>
-        <th>Ведущий:</td>
-  	<td>$user</td>
+        <th>п▓п╣п╢я┐я┴п╦п╧:</td>
+  	<td>$face</a></td>
   	<td></td>
       </tr>
       <tr>
-        <th>Начало:</td>
+        <th>п²п╟я┤п╟п╩п╬:</td>
   	<td><textarea name=text cols=50 rows=5/>$st->{text}</textarea></td>
-  	<td>Начало стихотворения, которое будет предложено
-            продолжить участникам. Следует указать авторский знак
-  	    препинанания в конце отрывка, он не будет показан
-  	    на первом этапе игры</td>
+  	<td>п²п╟я┤п╟п╩п╬ я│я┌п╦я┘п╬я┌п╡п╬я─п╣п╫п╦я▐, п╨п╬я┌п╬я─п╬п╣ п╠я┐п╢п╣я┌ п©я─п╣п╢п╩п╬п╤п╣п╫п╬
+            п©я─п╬п╢п╬п╩п╤п╦я┌я▄ я┐я┤п╟я│я┌п╫п╦п╨п╟п╪. п║п╩п╣п╢я┐п╣я┌ я┐п╨п╟п╥п╟я┌я▄ п╟п╡я┌п╬я─я│п╨п╦п╧ п╥п╫п╟п╨
+  	    п©я─п╣п©п╦п╫п╟п╫п╟п╫п╦я▐ п╡ п╨п╬п╫я├п╣ п╬я┌я─я▀п╡п╨п╟, п╬п╫ п╫п╣ п╠я┐п╢п╣я┌ п©п╬п╨п╟п╥п╟п╫
+  	    п╫п╟ п©п╣я─п╡п╬п╪ я█я┌п╟п©п╣ п╦пЁя─я▀</td>
       </tr>
       <tr>
-        <th align=right valign=top>Продолжение:</td>
+        <th align=right valign=top>п÷я─п╬п╢п╬п╩п╤п╣п╫п╦п╣:</td>
   	<td><textarea name=var_text cols=50 rows=5>$var->{text}</textarea></td>
-  	<td>Авторский вариант продолжения</td>
+  	<td>п░п╡я┌п╬я─я│п╨п╦п╧ п╡п╟я─п╦п╟п╫я┌ п©я─п╬п╢п╬п╩п╤п╣п╫п╦я▐</td>
       </tr>
       <tr>
-        <th align=right valign=top>Автор:</td>
+        <th align=right valign=top>п░п╡я┌п╬я─:</td>
   	<td><input type=text name=auth size=50 maxlength=50 value=$st->{auth}></td>
-  	<td>Автор не будет открыт до объявления результатов</td>
+  	<td>п░п╡я┌п╬я─ п╫п╣ п╠я┐п╢п╣я┌ п╬я┌п╨я─я▀я┌ п╢п╬ п╬п╠я┼я▐п╡п╩п╣п╫п╦я▐ я─п╣п╥я┐п╩я▄я┌п╟я┌п╬п╡</td>
       </tr>
     </table>
     <p><table>
       <tr>
-        <td colspan=2><h4>Условия первого этапа игры:</h4></td>
+        <td colspan=2><h4>пёя│п╩п╬п╡п╦я▐ п©п╣я─п╡п╬пЁп╬ я█я┌п╟п©п╟ п╦пЁя─я▀:</h4></td>
       </tr>
       <tr>
   	<th><input type=text name=t1 size=3 maxlength=3 value=$st->{t1}></td>
-  	<td>Срок придумывания вариантов, в часах. Через это время все
-  	    варианты будут открыты (если их число достигнет указанного
-  	    ниже минимального значения) и игра перейдет ко второму этапу</td>
+  	<td>п║я─п╬п╨ п©я─п╦п╢я┐п╪я▀п╡п╟п╫п╦я▐ п╡п╟я─п╦п╟п╫я┌п╬п╡, п╡ я┤п╟я│п╟я┘. п╖п╣я─п╣п╥ я█я┌п╬ п╡я─п╣п╪я▐ п╡я│п╣
+  	    п╡п╟я─п╦п╟п╫я┌я▀ п╠я┐п╢я┐я┌ п╬я┌п╨я─я▀я┌я▀ (п╣я│п╩п╦ п╦я┘ я┤п╦я│п╩п╬ п╢п╬я│я┌п╦пЁп╫п╣я┌ я┐п╨п╟п╥п╟п╫п╫п╬пЁп╬
+  	    п╫п╦п╤п╣ п╪п╦п╫п╦п╪п╟п╩я▄п╫п╬пЁп╬ п╥п╫п╟я┤п╣п╫п╦я▐) п╦ п╦пЁя─п╟ п©п╣я─п╣п╧п╢п╣я┌ п╨п╬ п╡я┌п╬я─п╬п╪я┐ я█я┌п╟п©я┐</td>
       </tr>
       <tr>
   	<th><input type=text name=n1max size=3 maxlength=3 value=$st->{n1max}></td>
-  	<td>Максимальное количество вариантов (включая авторский). При
-  	    достижении этого числа вариантов первый этап игры закончится
-  	    раньше срока</td>
+  	<td>п°п╟п╨я│п╦п╪п╟п╩я▄п╫п╬п╣ п╨п╬п╩п╦я┤п╣я│я┌п╡п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡ (п╡п╨п╩я▌я┤п╟я▐ п╟п╡я┌п╬я─я│п╨п╦п╧). п÷я─п╦
+  	    п╢п╬я│я┌п╦п╤п╣п╫п╦п╦ я█я┌п╬пЁп╬ я┤п╦я│п╩п╟ п╡п╟я─п╦п╟п╫я┌п╬п╡ п©п╣я─п╡я▀п╧ я█я┌п╟п© п╦пЁя─я▀ п╥п╟п╨п╬п╫я┤п╦я┌я│я▐
+  	    я─п╟п╫я▄я┬п╣ я│я─п╬п╨п╟</td>
       </tr>
       <tr>
   	<th><input type=text name=n1min size=3 maxlength=3 value=$st->{n1min}></td>
-  	<td>Минимальное количество вариантов (включая авторский).
-  	    Первый этап игры не закончится, пока не будет набрано
-  	    указанное количество вариантов</td>
+  	<td>п°п╦п╫п╦п╪п╟п╩я▄п╫п╬п╣ п╨п╬п╩п╦я┤п╣я│я┌п╡п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡ (п╡п╨п╩я▌я┤п╟я▐ п╟п╡я┌п╬я─я│п╨п╦п╧).
+  	    п÷п╣я─п╡я▀п╧ я█я┌п╟п© п╦пЁя─я▀ п╫п╣ п╥п╟п╨п╬п╫я┤п╦я┌я│я▐, п©п╬п╨п╟ п╫п╣ п╠я┐п╢п╣я┌ п╫п╟п╠я─п╟п╫п╬
+  	    я┐п╨п╟п╥п╟п╫п╫п╬п╣ п╨п╬п╩п╦я┤п╣я│я┌п╡п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡</td>
       </tr>
       <tr>
   	<th><input type=text name=n1u size=3 maxlength=3 value=$st->{n1u}></td>
-  	<td>Максимальное число вариантов от одного участника</td>
+  	<td>п°п╟п╨я│п╦п╪п╟п╩я▄п╫п╬п╣ я┤п╦я│п╩п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡ п╬я┌ п╬п╢п╫п╬пЁп╬ я┐я┤п╟я│я┌п╫п╦п╨п╟</td>
       </tr>
       <tr>
-        <td colspan=2><br><h4>Условия второго этапа игры:</h4></td>
+        <td colspan=2><br><h4>пёя│п╩п╬п╡п╦я▐ п╡я┌п╬я─п╬пЁп╬ я█я┌п╟п©п╟ п╦пЁя─я▀:</h4></td>
       </tr>
       <tr>
   	<th><input type=text name=t2 size=3 maxlength=3 value=$st->{t2}></td>
-  	<td>Срок отгадывания вариантов, в часах. Через это время от начала
-  	    второго этапа результаты будут открыты (если число отгадывавших
-  	    достигнет указанного ниже минимального значения) и игра
-  	    закончится</td>
+  	<td>п║я─п╬п╨ п╬я┌пЁп╟п╢я▀п╡п╟п╫п╦я▐ п╡п╟я─п╦п╟п╫я┌п╬п╡, п╡ я┤п╟я│п╟я┘. п╖п╣я─п╣п╥ я█я┌п╬ п╡я─п╣п╪я▐ п╬я┌ п╫п╟я┤п╟п╩п╟
+  	    п╡я┌п╬я─п╬пЁп╬ я█я┌п╟п©п╟ я─п╣п╥я┐п╩я▄я┌п╟я┌я▀ п╠я┐п╢я┐я┌ п╬я┌п╨я─я▀я┌я▀ (п╣я│п╩п╦ я┤п╦я│п╩п╬ п╬я┌пЁп╟п╢я▀п╡п╟п╡я┬п╦я┘
+  	    п╢п╬я│я┌п╦пЁп╫п╣я┌ я┐п╨п╟п╥п╟п╫п╫п╬пЁп╬ п╫п╦п╤п╣ п╪п╦п╫п╦п╪п╟п╩я▄п╫п╬пЁп╬ п╥п╫п╟я┤п╣п╫п╦я▐) п╦ п╦пЁя─п╟
+  	    п╥п╟п╨п╬п╫я┤п╦я┌я│я▐</td>
       </tr>
       <tr>
   	<th><input type=text name=n2min size=3 maxlength=3 value=$st->{n2min}></td>
-  	<td>Минимальное число отгадывающих. Второй этап игры не закончится,
-  	    пока число отгадывающих не достигнет этого значения</td>
+  	<td>п°п╦п╫п╦п╪п╟п╩я▄п╫п╬п╣ я┤п╦я│п╩п╬ п╬я┌пЁп╟п╢я▀п╡п╟я▌я┴п╦я┘. п▓я┌п╬я─п╬п╧ я█я┌п╟п© п╦пЁя─я▀ п╫п╣ п╥п╟п╨п╬п╫я┤п╦я┌я│я▐,
+  	    п©п╬п╨п╟ я┤п╦я│п╩п╬ п╬я┌пЁп╟п╢я▀п╡п╟я▌я┴п╦я┘ п╫п╣ п╢п╬я│я┌п╦пЁп╫п╣я┌ я█я┌п╬пЁп╬ п╥п╫п╟я┤п╣п╫п╦я▐</td>
       </tr>
       <tr>
   	<th><input type=checkbox name=allow_others size=3 maxlength=3 $allow_others></td>
-  	<td>Разрешать угадывать тем, кто не давал своего варианта</td>
+  	<td>п═п╟п╥я─п╣я┬п╟я┌я▄ я┐пЁп╟п╢я▀п╡п╟я┌я▄ я┌п╣п╪, п╨я┌п╬ п╫п╣ п╢п╟п╡п╟п╩ я│п╡п╬п╣пЁп╬ п╡п╟я─п╦п╟п╫я┌п╟</td>
       </tr>
     </table>
 
     <p><div align=center>
-      <input type="submit" name="submit" value="Начать игру!">
+      <input type="submit" name="submit" value="п²п╟я┤п╟я┌я▄ п╦пЁя─я┐!">
       </div>
     </form>
 EOF
@@ -424,52 +460,47 @@ EOF
 }
 
 sub sti_var_form{
-  my $user=shift;
+  my $u=shift;
+  my $user = $u->{_id};
+  my $face = mk_face($u);
+
   my $st=shift;
   my $var=shift;
 
-  my $ld=${$st->{vars}}[0]->{user};
-  print "<b>Ведущий:</b> $ld\n";
-  print "<h4>Начало:</h4>\n";
+  my $m_uid = ${$st->{vars}}[0]->{user};
+  my $m_usr = get_user_info($m_uid);
+  my $m_face = mk_face($m_usr) || $m_uid;
+
+  print "<h4>п▓п╣п╢я┐я┴п╦п╧: $m_face</h4>\n";
+  print "<h4>п²п╟я┤п╟п╩п╬</h4>\n";
   print "<pre>$st->{text}    ...</pre>\n";
 
   my $n=0;
  printf qq*
-  <h4>Параметры игры:</h4>
+  <h4>п÷п╟я─п╟п╪п╣я┌я─я▀ п╦пЁя─я▀</h4>
   <ul>
-  <li>Ограничение количества вариантов: от $st->{n1min} до $st->{n1max} шт
-  <li>От одного игрока принимается не более: $st->{n1u} шт
-  <li>До конца приема вариантов осталось: $st->{dt} ч
-  <li>Прислано вариантов: $st->{n1} (%s)
-  </ul>\n*, join ', ', (map { ($n++)==0?'А':$_->{user} } @{$st->{vars}});
+  <li>п·пЁя─п╟п╫п╦я┤п╣п╫п╦п╣ п╨п╬п╩п╦я┤п╣я│я┌п╡п╟ п╡п╟я─п╦п╟п╫я┌п╬п╡: п╬я┌ $st->{n1min} п╢п╬ $st->{n1max} я┬я┌
+  <li>п·я┌ п╬п╢п╫п╬пЁп╬ п╦пЁя─п╬п╨п╟ п©я─п╦п╫п╦п╪п╟п╣я┌я│я▐ п╫п╣ п╠п╬п╩п╣п╣: $st->{n1u} я┬я┌
+  <li>п■п╬ п╨п╬п╫я├п╟ п©я─п╦п╣п╪п╟ п╡п╟я─п╦п╟п╫я┌п╬п╡ п╬я│я┌п╟п╩п╬я│я▄: $st->{dt} я┤
+  <li>п÷я─п╦я│п╩п╟п╫п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡: $st->{n1} (%s)
+  </ul>\n*, join ', ', (map { ($n++)==0?'п░':$st->{names}->{$_->{user}} } @{$st->{vars}});
 
   my $count = grep { $_->{user} eq $user } @{$st->{vars}};
-  sti_tail('Игра продолжается!',1) if ($user eq '');
-  sti_tail('Ваша игра продолжается!',1) if ($user eq $ld);
-  sti_tail('Игра продолжается, а вы уже достаточно вариантов написали!',1)
+  sti_tail('п≤пЁя─п╟ п©я─п╬п╢п╬п╩п╤п╟п╣я┌я│я▐!',1) if ($user eq '');
+  sti_tail('п▓п╟я┬п╟ п╦пЁя─п╟ п©я─п╬п╢п╬п╩п╤п╟п╣я┌я│я▐!',1) if ($user eq $m_uid);
+  sti_tail('п≤пЁя─п╟ п©я─п╬п╢п╬п╩п╤п╟п╣я┌я│я▐, п╟ п╡я▀ я┐п╤п╣ п╢п╬я│я┌п╟я┌п╬я┤п╫п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡ п╫п╟п©п╦я│п╟п╩п╦!',1)
     if ($count >= $st->{n1u});
 
   print <<EOF
   <form action="" method=GET>
     <input type="hidden" name="id" value="$st->{id}">
-    <p><table>
-      <tr>
-        <td colspan=2><h4>Добавьте свое продолжение:</h4></td>
-      </tr>
-      <tr>
-        <th>Игрок:</td>
-  	<td>$user</td>
-      </tr>
-      <tr>
-        <th align=right valign=top>Ваш&nbsp;вариант:</td>
-  	<td><textarea name=var_text cols=50 rows=5>$var->{text}</textarea>
-  	 <p>Введите ваш вариант стиха, начало и продолжение. Начало вашего
-            варианта должно совпадать с заданным с точностью до знака
-            препинания после него</td>
-      </tr>
-    </table>
+    <h4>п■п╬п╠п╟п╡я▄я┌п╣ я│п╡п╬п╣ п©я─п╬п╢п╬п╩п╤п╣п╫п╦п╣</h4>
+    <p>п▓п╡п╣п╢п╦я┌п╣ п╡п╟я┬ п╡п╟я─п╦п╟п╫я┌ я│я┌п╦я┘п╟, п╫п╟я┤п╟п╩п╬ п╦ п©я─п╬п╢п╬п╩п╤п╣п╫п╦п╣. п²п╟я┤п╟п╩п╬ п╡п╟я┬п╣пЁп╬
+       п╡п╟я─п╦п╟п╫я┌п╟ п╢п╬п╩п╤п╫п╬ я│п╬п╡п©п╟п╢п╟я┌я▄ я│ п╥п╟п╢п╟п╫п╫я▀п╪ я│ я┌п╬я┤п╫п╬я│я┌я▄я▌ п╢п╬ п╥п╫п╟п╨п╟
+       п©я─п╣п©п╦п╫п╟п╫п╦я▐ п©п╬я│п╩п╣ п╫п╣пЁп╬:
+    <p><textarea name=var_text cols=50 rows=5>$var->{text}</textarea>
     <p><div align=center>
-      <input type="submit" name="submit" value="Добавить продолжение!">
+      <input type="submit" name="submit" value="п■п╬п╠п╟п╡п╦я┌я▄ п©я─п╬п╢п╬п╩п╤п╣п╫п╦п╣!">
       </div>
     </form>
 EOF
@@ -477,23 +508,49 @@ EOF
 }
 
 sub sti_guess_form{
-  my $user=shift;
+  my $usr=shift;
+  my $uid=$usr->{_id};
+
   my $st=shift;
   my $guess=shift;
 
-  my $ld=$st->{vars}->[0]->{user};
-  $st->{vars}->[0]->{user}='А';
+  # п╡п╣п╢я┐я┴п╦п╧
+  my $m_uid = ${$st->{vars}}[0]->{user};
+  my $m_name = $st->{names}->{$m_uid} || $m_uid;
 
-  my $form=($user ne '') && (!exists $st->{guesses}->{$user});
+  $st->{vars}->[0]->{user}='A';
+
+  my $form=($uid ne '') && (!exists $st->{guesses}->{$uid});
 
   print qq*
-    <b>Ведущий:</b> $ld
-    <h4>Авторы вариантов (в порядке поступления вариантов):</h4>
+    <h4>п▓п╣п╢я┐я┴п╦п╧: $m_name </h4>
+    <h4>п░п╡я┌п╬я─я▀ п╡п╟я─п╦п╟п╫я┌п╬п╡ (п╡ п╟п╩я└п╟п╡п╦я┌п╫п╬п╪ п©п╬я─я▐п╢п╨п╣):</h4>
     <ul>\n*;
 
+  # п╡я│п╣ я┐я┤п╟я│я┌п╫п╦п╨п╦
+  my %users; # id -> п╨п╬п╩-п╡п╬ п╡п╟я─п╦п╟п╫я┌п╬п╡
   for (my $i=0; $i <= $#{$st->{vars}}; $i++){
-    printf "<li>$st->{vars}->[$i]->{user}\n";
+    my $v_uid =  $st->{vars}->[$i]->{user};
+    $users{$v_uid} = ($users{$v_uid} || 0) + 1;
   }
+
+  foreach (sort keys %users) {
+    my $v_name = $st->{names}->{$_} || $_;
+    my $num = $users{$_};
+    printf "<li>$v_name\n";
+    if ($num!=1){
+      if ($num%10==1 && $num%100!=11) {
+        printf "($num п╡п╟я─п╦п╟п╫я┌)\n";
+      }
+      elsif ($num%10 >=2 && $num%10<5 && ($num%100)/10 != 1) {
+        printf "($num п╡п╟я─п╦п╟п╫я┌п╟)\n";
+      }
+      else {
+        printf "($num п╡п╟я─п╦п╟п╫я┌п╬п╡)\n";
+      }
+    }
+  }
+
   print "</ul>\n";
 
   print qq*
@@ -502,43 +559,56 @@ sub sti_guess_form{
     if $form;
 
   print qq*
-    <h4>Варианты (в перепутанном порядке):</h4>
+    <h4>п▓п╟я─п╦п╟п╫я┌я▀ (п╡ п©п╣я─п╣п©я┐я┌п╟п╫п╫п╬п╪ п©п╬я─я▐п╢п╨п╣):</h4>
     <p><table border=0 cellpadding=5 cellspacing=0>\n*;
 
   my $i=0;
-  foreach (sort { $a->{key} cmp $b->{key} } @{$st->{vars}}){
+  foreach my $v (sort { $a->{key} cmp $b->{key} } @{$st->{vars}}){
     my $input='';
-    $input="\n<td><input type=\"text\" name=\"var$i\" value=\"${$guess->{data}}[$_->{n}]\"></td>"
-      if $form;
-    $input="\n<td><input disabled type=\"text\" name=\"\" value=\"$user\">".
-           "<input type=\"hidden\" name=\"var$i\" value=\"$user\"></td>"
-      if $form && $user eq $_->{user};
 
-#    my $best='';
-#    $best="\n<th><input type=\"radio\" name=\"best\" value=\"$i\"></th>"
-#      if $user ne '';
-#    $best="\n<th><input type=\"radio\" name=\"best\" value=\"$i\" disabled></th>"
-#      if $user eq $_->{user};
+    if ($form && $uid ne $v->{user}) {
+      $input .= "<select name=\"var$i\">\n";
+      foreach (sort keys %users){
+        my $v_uid = $_;
+        my $v_name = $st->{names}->{$_} || $_;
+        my $old_guess = ${$guess->{data}}[$v->{n}] || '';
+        my $s = $old_guess eq $v_uid ? " selected":"";
+        $input .= "<option value=\"$v_uid\"$s>$v_name</option>\n"
+          if $v_uid ne $uid;
+      }
+      $input .= "</select>\n";
+    }
+
+    $input="\nп╜я┌п╬ п╡п╟я┬ п╡п╟я─п╦п╟п╫я┌!".
+           "<input type=\"hidden\" name=\"var$i\" value=\"$uid\">"
+      if $form && $uid eq $v->{user};
 
     $i++;
     print qq*
       <tr>
-        <td>$i</td>
-        <td><pre>$_->{text}</pre></td>$input
+        <td valign=top>$i</td>
+        <td valign=top><pre>$v->{text}</pre></td>
+        <td valign=top>$input</td>
       </tr>\n*;
+
+
   }
   print "</table>\n";
 
   print qq*
     <p><div align=center>
-      <input type="submit" name="submit" value="Я угадаю всех!"></div>
+      <input type="submit" name="submit" value="п⌠п╬я┌п╬п╡п╬!"></div>
     </form>\n* if $form;
+
+  print "<p>п░ п╡я▀ я┐п╤п╣ я┐пЁп╟п╢я▀п╡п╟п╩п╦." if (!$form && $uid ne '');
 }
 
+# п©п╬п╩я┐я┤п╦я┌я▄ п╫п╬п╡я┐я▌ п╦пЁя─я┐ п╦ п╥п╟п©п╦я│п╟я┌я▄ п╡ я└п╟п╧п╩
 sub sti_write_new{
-  my $user=shift;
+  my $u=shift;
+  my $user = $u->{_id};
   my $st=shift;
-  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+  sti_tail("п▓п╟я┬п╣ п╦п╪я▐ п╫п╣п╦п╥п╡п╣я│я┌п╫п╬. п▓п╬п╧п╢п╦я┌п╣ п╡ я│п╦я│я┌п╣п╪я┐, я┤я┌п╬п╠я▀ п╫п╟я┤п╟я┌я▄ п╫п╬п╡я┐я▌ п╦пЁя─я┐!")
     if ($user eq '');
 
   my $time=time();
@@ -549,7 +619,9 @@ sub sti_write_new{
   while( -f "$datadir/$id" ){ $i++; $id=$idbase.'_'.$i; }
 
   open OUT, "> $datadir/$id" or
-    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+    sti_tail("п·я┬п╦п╠п╨п╟: я└п╟п╧п╩ $datadir/$id п╫п╣ п╬я┌п╨я─я▀п╡п╟п╣я┌я│я▐.", 1);
+  binmode OUT, ':encoding(UTF-8)';
+
 
   my $allow_others = $st->{allow_others} ? ' allow_others':'';
   print OUT "<game t1=\"$st->{t1}\" n1min=\"$st->{n1min}\" n1max=\"$st->{n1max}\" ".
@@ -561,32 +633,38 @@ sub sti_write_new{
   return $id;
 }
 
+# п©п╬п╩я┐я┤п╦я┌я▄ п╫п╬п╡я▀п╧ п╡п╟я─п╦п╟п╫я┌, п©я─п╬п╡п╣я─п╦я┌я▄ п╦ п╢п╬п©п╦я│п╟я┌я▄ п╡ я└п╟п╧п╩ п╢п╟п╫п╫я▀я┘
 sub sti_write_var{
-  my $user=shift;
+  my $u=shift;
+  my $user = $u->{_id};
   my $id=shift;
   my $var=shift;
-  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+  sti_tail("п▓п╟я┬п╣ п╦п╪я▐ п╫п╣п╦п╥п╡п╣я│я┌п╫п╬. п▓п╬п╧п╢п╦я┌п╣ п╡ я│п╦я│я┌п╣п╪я┐, я┤я┌п╬п╠я▀ п╫п╟я┤п╟я┌я▄ п╫п╬п╡я┐я▌ п╦пЁя─я┐!")
     if ($user eq '');
 
   my $time=time();
   open OUT, ">> $datadir/$id" or
-    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+    sti_tail("п·я┬п╦п╠п╨п╟: я└п╟п╧п╩ $datadir/$id п╫п╣ п╬я┌п╨я─я▀п╡п╟п╣я┌я│я▐.", 1);
+  binmode OUT, ':encoding(UTF-8)';
 
   print OUT "<var user=\"$user\" time=\"$time\">\n".
             $var->{text}. "\n";
   close OUT;
 }
 
+# п©п╬п╩я┐я┤п╦я┌я▄ п╫п╬п╡п╬п╣ я┐пЁп╟п╢я▀п╡п╟п╫п╦п╣, п©я─п╬п╡п╣я─п╦я┌я▄ п╦ п╢п╬п©п╦я│п╟я┌я▄ п╡ я└п╟п╧п╩ п╢п╟п╫п╫я▀я┘
 sub sti_write_guess{
-  my $user=shift;
+  my $u=shift;
+  my $user = $u->{_id};
   my $id=shift;
   my $guess=shift;
-  sti_tail("Ваше имя неизвестно. Войдите в систему, чтобы начать новую игру!")
+  sti_tail("п▓п╟я┬п╣ п╦п╪я▐ п╫п╣п╦п╥п╡п╣я│я┌п╫п╬. п▓п╬п╧п╢п╦я┌п╣ п╡ я│п╦я│я┌п╣п╪я┐, я┤я┌п╬п╠я▀ п╫п╟я┤п╟я┌я▄ п╫п╬п╡я┐я▌ п╦пЁя─я┐!")
     if ($user eq '');
 
   my $time=time();
   open OUT, ">> $datadir/$id" or
-    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+    sti_tail("п·я┬п╦п╠п╨п╟: я└п╟п╧п╩ $datadir/$id п╫п╣ п╬я┌п╨я─я▀п╡п╟п╣я┌я│я▐.", 1);
+  binmode OUT, ':encoding(UTF-8)';
 
   my $data=join ',', @{$guess->{data}};
   print OUT "<guess user=\"$user\" best=\"$guess->{best}\" ".
@@ -594,67 +672,95 @@ sub sti_write_guess{
   close OUT;
 }
 
+# п©п╣я┤п╟я┌я▄ я┌п╟п╠п╩п╦я├я▀ я─п╣п╥я┐п╩я▄я┌п╟я┌п╬п╡
 sub sti_print_res{
   my $st=shift;
   my %r;
   my %r1;
   my %r2;
 
-  print "<b>Ведущий: ${$st->{vars}}[0]->{user}";
-  print ", игра: $st->{id}</b>";
-  print "<b>, автор: $st->{auth}</b>\n" if $st->{auth};
+  my $m_uid  = ${$st->{vars}}[0]->{user};
+  my $m_name = $st->{names}->{$m_uid};
+
+  print "<h4>п≤пЁя─п╟: $st->{id}</h4>\n";
+  print "<h4>п▓п╣п╢я┐я┴п╦п╧: $m_name</h4>\n";
+  print "<h4>п░п╡я┌п╬я─: $st->{auth}</h4>\n" if $st->{auth};
 
   print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
 
-  print "<tr><td colspan=2><br></td>\n";
-  foreach (keys %{$st->{guesses}}){
-    print"<td align=center>$_</td>\n";
-    $r2{$_}=0;
+  print "<tr><td colspan=2 align=right>я┐пЁп╟п╢я▀п╡п╟п╩п╦:</td>\n";
+  foreach (sort keys %{$st->{guesses}}){
+    my $sn = $st->{sh_names}->{$_};
+    print"<td align=center>$sn</td>\n";
   }
-  print "<td align=center>за непохожесть<br>на себя</td></tr>\n";
+  print "<td align=center>п╥п╟ п╫п╣п©п╬я┘п╬п╤п╣я│я┌я▄<br>п╫п╟ я│п╣п╠я▐</td></tr>\n";
 
-  my $leader=${$st->{vars}}[0]->{user};
-  ${$st->{vars}}[0]->{user}='А';
-
+  # п╢п╩я▐ п╨п╟п╤п╢п╬пЁп╬ п╡п╟я─п╦п╟п╫я┌п╟
   for (my $i=0; $i <= $#{$st->{vars}}; $i++){
     my $var=${$st->{vars}}[$i];
+
+    my $v_uid = $var->{user};
+    my $v_shname = $st->{sh_names}->{$v_uid};
+    $v_uid = $v_shname = 'A' if $i==0;
+
     print qq*
       <tr>
-        <td>$var->{user}</td>
+        <td>$v_shname</td>
         <td><pre>$var->{text}</pre></td>\n*;
 
-    $r1{$var->{user}}=0;
-    foreach (keys %{$st->{guesses}}){
+    # п╢п╩я▐ п╨п╟п╤п╢п╬пЁп╬ я┐пЁп╟п╢я▀п╡п╟я▌я┴п╣пЁп╬
+    foreach (sort keys %{$st->{guesses}}){
         my $g=${$st->{guesses}}{$_};
-        my $u=$g->{data}->[$i];
-        $u="-" unless $u;
-        $u="*" unless $_ ne $var->{user};
-        if ($var->{user} eq $u){
-          $u="<font color=red>$u</font>";
-          $r1{$var->{user}}--;
-          $r2{$_}++;
-          $r{$var->{user}}--;
-          $r{$_}++;
+
+        # я┌п╬я┌, п╨я┌п╬ я┐пЁп╟п╢я▀п╡п╟п╩
+        my $g_uid  = $_;
+        my $g_shname = $st->{sh_names}->{$g_uid};
+
+        # я┌п╬я┌, п╨п╬пЁп╬ п╬п╫ п©я─п╣п╢п©п╬п╩п╬п╤п╦п╩
+
+        my $r_uid = $g->{data}->[$i];
+        $r_uid = 'A' if ($r_uid eq 'A' || $r_uid eq 'п░'); # п╡ я│я┌п╟я─я▀я┘ п╦пЁя─п╟я┘ - я─я┐я│я│п╨п╟я▐ п╠я┐п╨п╡п╟
+        my $r_shname = ($r_uid eq 'A')? 'A' : $st->{sh_names}->{$r_uid};
+
+        my $sym;
+
+        # п╫п╣ я┐пЁп╟п╢я▀п╡п╟п╩
+        if (!$r_uid){
+          $sym = "-"
         }
-        elsif (($u ne '-') && ($u ne '*')) {
-          $r1{$var->{user}}++;
-          $r2{$_}--;
-          $r{$var->{user}}++;
-          $r{$_}--;
+        # я│п╬п╠я│я┌п╡п╣п╫п╫я▀п╧ п╡п╟я─п╦п╟п╫я┌
+        elsif ($v_uid eq $g_uid) {
+          $sym = "*";
+        }
+        # я┐пЁп╟п╢п╟п╩
+        elsif ($v_uid eq $r_uid){
+          $sym="<font color=darkred><b>$r_shname</b></font>";
+          $r1{$v_uid} = ($r1{$v_uid} || 0)-1;
+          $r2{$g_uid} = ($r2{$g_uid} || 0)+1;
+          $r{$v_uid}  = ($r{$v_uid} || 0)-1;
+          $r{$g_uid}  = ($r{$g_uid} || 0)+1;
+        }
+        # п╫п╣ я┐пЁп╟п╢п╟п╩
+        else {
+          $sym=$r_shname;
+          $r1{$v_uid} = ($r1{$v_uid} || 0)+1;
+          $r2{$g_uid} = ($r2{$g_uid} || 0)-1;
+          $r{$v_uid}  = ($r{$v_uid} || 0)+1;
+          $r{$g_uid}  = ($r{$g_uid} || 0)-1;
         }
 
-        print"<td width=50px align=center>$u</td>\n";
+        print"<td width=50px align=center>$sym</td>\n";
     }
 
     print qq*
-      <td align=center>$r1{$var->{user}}</td>
+      <td align=center>$r1{$v_uid}</td>
       </tr>\n*;
   }
   print qq*
     <tr>
       <td><br></td>
-      <td align=right>за догадливость:</td>\n*;
-  foreach (keys %{$st->{guesses}}){
+      <td align=right>п╥п╟ п╢п╬пЁп╟п╢п╩п╦п╡п╬я│я┌я▄:</td>\n*;
+  foreach (sort keys %{$st->{guesses}}){
     print"<td align=center>$r2{$_}</td>\n";
   }
   print qq*
@@ -663,16 +769,22 @@ sub sti_print_res{
     </table>\n*;
 
 
-  $r{$leader}=$r{${$st->{vars}}[0]->{user}};
+  $r{$m_uid}=$r{${$st->{vars}}[0]->{user}};
   delete($r{${$st->{vars}}[0]->{user}});
 
   print qq*
-    <h4>Результаты:</h4>
+    <h4>п═п╣п╥я┐п╩я▄я┌п╟я┌я▀:</h4>
     <p><table border=0>\n*;
 
   foreach (sort { $r{$b} <=> $r{$a} } keys %r){
-  printf qq*
-    <tr><td align=right>$_:</td><td align=right>%+d</td></tr>\n*, $r{$_};
+    my $id = $_;
+    $id = $m_uid if $id eq 'A';
+
+    my $n  = $st->{names}->{$id} || $_;
+    my $sn = $st->{sh_names}->{$id} || $_;
+    if ($sn ne $n) {$n = "$n ($sn)"}
+    printf qq*
+      <tr><td align=right>$n:</td><td align=right>%+d</td></tr>\n*, $r{$_};
   }
   print qq*
     </table>\n*;
@@ -683,75 +795,94 @@ sub sti_print_res{
 
 ############################################################
 
-my $user=auth::login();
-sti_head();
+try {
+  my $db = open_db;
+  my $u = get_my_info($db);
+  print_head_simple $u, [], ['main.css', 'sti.css', 'site.js', 'main.js'];
 
-my $id=param('id');
-my $submit=param('submit');
-if (!defined($id)){
-  sti_list($user);
-}
-elsif ($id eq 'new'){
-  my $st=sti_get_new();
-  my $var=${$st->{vars}}[0];
-  if (defined($submit)){
-    if ($st->{error} ne ''){
-      sti_msg($st->{error});
-      sti_new_form($user, $st, $var);
+
+  my $id=param('id');
+  my $submit=param('submit');
+  if (!defined($id)){ sti_list($u); }
+
+  # п╫п╟я┤п╟я┌я▄ п╫п╬п╡я┐я▌ п╦пЁя─я┐
+  elsif ($id eq 'new'){
+    my $st=sti_get_new();
+    my $var=${$st->{vars}}[0];
+
+    # п╡я▀п╢п╟я┤п╟ я└п╬я─п╪я▀
+    if (!defined($submit)){
+      sti_new_form($u, $st, $var);
     }
-    elsif ($var->{error} ne ''){
-      sti_msg("Ошибка: $var->{error}!");
-      sti_new_form($user, $st, $var);
-    }
+
+    # п©я─п╦п╣п╪ я└п╬я─п╪я▀
     else{
-      my $id=sti_write_new($user, $st);
-      sti_write_var($user, $id, $var);
-      sti_tail("<h3>Поздравляем, $user, игра началась!</h3>", 1);
+      if ($st->{error}){
+        sti_msg($st->{error});
+        sti_new_form($u, $st, $var);
+      }
+      elsif ($var->{error}){
+        sti_msg("п·я┬п╦п╠п╨п╟: $var->{error}!");
+        sti_new_form($u, $st, $var);
+      }
+      else{
+        my $id=sti_write_new($u, $st);
+        sti_write_var($u, $id, $var);
+        sti_tail("<h3>п÷п╬п╥п╢я─п╟п╡п╩я▐п╣п╪, $u->{name}, п╦пЁя─п╟ п╫п╟я┤п╟п╩п╟я│я▄!</h3>", 1);
+      }
     }
   }
   else{
-    sti_new_form($user, $st, $var);
-  }
-}
-else{
-  my $st=sti_read($id);
+    my $st=sti_read($id);
 
-  if ($st->{status} eq 'new'){
-    my $var=sti_get_var($user, $st);
+    # п©я─п╦п╣п╪ п©я─п╬п╢п╬п╩п╤п╣п╫п╦п╧
+    if ($st->{status} eq 'new'){
+      my $var=sti_get_var($u, $st);
 
-    if (defined($submit)){
-      if ($var->{error} ne ''){
-        sti_msg("Ошибка: $var->{error}!");
-        sti_var_form($user, $st, $var);
+      # п╡я▀п╢п╟я┤п╟ я└п╬я─п╪я▀
+      if (!defined($submit)){
+        sti_var_form($u, $st, $var);
       }
+      # п©я─п╦п╣п╪ я└п╬я─п╪я▀
       else{
-        sti_write_var($user, $id, $var);
-        sti_tail('<h3>Ваш вариант продолжения добавлен!</h3>', 1);
+        if ($var->{error}){
+          sti_msg("п·я┬п╦п╠п╨п╟: $var->{error}!");
+          sti_var_form($u, $st, $var);
+        }
+        else{
+          sti_write_var($u, $id, $var);
+          sti_tail('<h3>п▓п╟я┬ п╡п╟я─п╦п╟п╫я┌ п©я─п╬п╢п╬п╩п╤п╣п╫п╦я▐ п╢п╬п╠п╟п╡п╩п╣п╫!</h3>', 1);
+        }
       }
     }
-    else{
-      sti_var_form($user, $st, $var);
-    }
-  }
-  elsif ($st->{status} eq 'guess'){
-    my $guess=sti_get_guess($user, $st);
+    # я┐пЁп╟п╢я▀п╡п╟п╫п╦п╣
+    elsif ($st->{status} eq 'guess'){
+      my $guess=sti_get_guess($u, $st);
 
-    if (defined($submit)){
-      if ($guess->{error} ne ''){
-        sti_msg("Ошибка: $guess->{error}!");
-        sti_guess_form($user, $st, $guess);
+      # п╡я▀п╢п╟я┤п╟ я└п╬я─п╪я▀
+      if (!defined($submit)){
+        sti_guess_form($u, $st, $guess);
       }
+      # п©я─п╦п╣п╪ я└п╬я─п╪я▀
       else{
-        sti_write_guess($user, $id, $guess);
-        sti_tail('<h3>Ваши догадки записаны! Ждите результатов...</h3>', 1);
+        if ($guess->{error} ne ''){
+          sti_msg("п·я┬п╦п╠п╨п╟: $guess->{error}!");
+          sti_guess_form($u, $st, $guess);
+        }
+        else{
+          sti_write_guess($u, $id, $guess);
+          sti_tail('<h3>п▓п╟я┬п╦ п╢п╬пЁп╟п╢п╨п╦ п╥п╟п©п╦я│п╟п╫я▀! п√п╢п╦я┌п╣ я─п╣п╥я┐п╩я▄я┌п╟я┌п╬п╡...</h3>', 1);
+        }
       }
     }
-    else{
-      sti_guess_form($user, $st, $guess);
+    # п©п╣я┤п╟я┌я▄ я─п╣п╥я┐п╩я▄я┌п╟я┌п╬п╡
+    else {
+      sti_print_res($st);
     }
   }
-  else {
-    sti_print_res($st);
-  }
+  sti_tail('', defined($id)?1:'');
+
 }
-sti_tail('', defined($id)?1:'');
+catch {
+  print_error($_, 'html');
+}

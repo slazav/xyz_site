@@ -1,3 +1,13 @@
+    настройка сервера
+
+web-server (web.yml): apache (with cgi) + mongo + perl modules
+grafana (grafana.yml): port 3000
+
+
+
+
+=========================
+
 Устройство сайта:
 
 сайты лежат:
@@ -19,4 +29,71 @@ logs
 публикация:
 - /var/www/test/{html,cgi} -> в /var/www/main{html,cgi}, кроме m4
 - обновление m4 с SITE_NAME=main
+
+======== 2019-01-05 ========
+проверил настройки на https://www.cloudns.net
+регистрация - до 2020
+
+настройки на digitaloceal:
+droplet - sla 138.68.106.81, 512MB/20GB/FRA1
+A: slazav.xyz, www.slazav.xyz, test.slazav.xyz, tiles.slazav.xyz
+завел SPF-запись в DNS, чтоб можно было отправлять почту
+https://www.digitalocean.com/community/tutorials/how-to-use-an-spf-record-to-prevent-spoofing-improve-e-mail-reliability
+
+завел spaces (5$/m за 250G):
+https://slazav.ams3.digitaloceanspaces.com -- open listing
+https://slazavpr.ams3.digitaloceanspaces.com
+
+собрал в Сизиф s3cmd 2.0.0,
+залил в slazavpr и slazav все с амазона - работает быстро!
+
+оценка размеров
+система: 8Gb
+var/log 1G
+var/www 1G
+var/lib 6G -- graphene+mongo
+
+сколько мне нужно:
+
+Почта:
+https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-postfix-on-ubuntu-16-04
++ hostname slazav.xyz
+
+======== 2019-01-20 ========
+Oбновление mongodb. ПРоблема в том, что с 3.2 на 3.6 надо обновиться
+через 3.4.
+инструкция: https://www.datainmotion.de/howto-update-of-a-mongo-3-2-x-standalone-to-a-3-6/
+Скачал пакеты 3.4.18 с https://repo.mongodb.org/apt/ubuntu/dists/xenial/mongodb-org/
+- увеличил память до 1Gb (кажется, цена та же, поменялся минимум), чтоб работал apt
+
+запустил сервер:
+# mongod --dbpath /var/lib/mongodb &
+запустил mongo shell:
+# mongo
+сделал
+> db.adminCommand( { setFeatureCompatibilityVersion: "3.4" } )
+
+вышел из mongo shell, убил сервер, убрал пакеты, поставил убунтовские
+сделал chown -R mongodb:mongodb /var/lib/mongodb/*
+(надо было запускать сервер с правильным пользователем)
+
+======== 2020-03-28 =======
+
+Попытка запустить сервер для игры в стихи.
+
+Всякие идеи по структуре сайта. Хочется иметь несколько проектов
+slazav.xyz/sti -> /var/www/sti/sti.pl
+
+===========================
+
+HTTPS
+https://www.digitalocean.com/community/tutorials/how-to-secure-apache-with-let-s-encrypt-on-ubuntu-18-04
+apt install python-certbot-apache
+
+# certbot --apache -d slazav.xyz -d test.slazav.xyz -d tiles.slazav.xyz
+
+/etc/letsencrypt/live/slazav.xyz/fullchain.pem
+
+stop openvpn! because it uses 443
+# lsof -i -P -n | grep LISTEN
 

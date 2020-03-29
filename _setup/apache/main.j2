@@ -1,0 +1,28 @@
+# configuration for slazav.xyz and test.slazav.xyz
+
+ServerAdmin webmasterr@localhost
+DocumentRoot "{{ wwwdir }}/html"
+ScriptAlias /cgi/ "{{ wwwdir }}/cgi/"
+ErrorLog    {{ wwwdir }}/logs/http_errors.log
+TransferLog {{ wwwdir }}/logs/http_access.log
+
+AddDefaultCharset               KOI8-R
+
+<Directory "{{ wwwdir }}/html">
+  Options Includes FollowSymLinks MultiViews
+  AllowOverride None
+</Directory>
+
+ScriptAlias /news  {{ wwwdir }}/cgi/news
+ScriptAlias /pcat  {{ wwwdir }}/cgi/pcat
+ScriptAlias /texts {{ wwwdir }}/cgi/texts
+ScriptAlias /map   {{ wwwdir }}/cgi/map
+ScriptAlias /users {{ wwwdir }}/cgi/users
+ScriptAlias /help  {{ wwwdir }}/cgi/help
+ScriptAlias /sti   {{ wwwdir }}/cgi/sti
+
+LogLevel warn
+
+<Directory "{{ wwwdir }}/cgi">
+  Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+</Directory>

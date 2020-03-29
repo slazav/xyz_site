@@ -6,9 +6,18 @@
     wwwdir: '/var/www/tiles'
 
   tasks:
-  - name: copy apache configuration
-    template: src=apache/tiles.slazav.xyz.j2
+  - name: copy apache configuration - main
+    template: src=apache/tiles.j2
+              dest=/etc/apache2/conf-available/{{ site }}.conf
+
+  - name: copy apache configuration - ssl
+    template: src=apache/ssl.conf
+        dest=/etc/apache2/conf-available/ssl.conf
+
+  - name: copy apache configuration - conf
+    template: src=apache/slazav.conf
               dest=/etc/apache2/sites-enabled/{{ site }}.conf
+
 
   - name: create folders if needed
     file: name={{ item.name }} state=directory mode={{ item.mode }}

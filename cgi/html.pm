@@ -12,7 +12,11 @@ BEGIN {
   our @ISA = qw(Exporter);
   our @EXPORT = qw(
     %level_names %site_icons
-    mk_face print_head print_tail print_error
+    mk_face
+    print_head
+    print_head_simple
+    print_tail
+    print_error
     mk_count_nav
     print_info_panel
     print_comments
@@ -68,19 +72,12 @@ my $loginza_login_url  = 'https://loginza.ru/api/widget?'
                        . "token_url=$site_url/cgi/login_loginza.pl&providers_set=$loginza_providers";
 
 ################################################
-sub print_head {
+sub print_head_simple {
   my $u = shift;
   my $l = ($u || exists($u->{level}))? $u->{level}: $LEVEL_ANON;
+  my $pages = shift;
+  my $add = shift; # array of files (*.css, *.js)
 
-  # main menu buttons
-  my $pages = [
-    {url => 'news',      title => 'Новости'},
-    {url => 'pcat',      title => 'Походы'},
-    {url => 'texts',     title => 'Тексты'},
-    {url => 'map.htm',   title => 'Карта'},
-    {url => 'help',      title => 'Справка'},
-    {url => 'users',     title => 'Люди', level => $LEVEL_MODER},
-  ];
   # build main menu
   my $main_menu='';
   foreach my $p (@{$pages}) {
@@ -104,11 +101,17 @@ sub print_head {
   # print header
   print header(-type=>'text/html', -charset=>'utf-8');
   print qq*
+<!DOCTYPE html>
 <html>
 <head>
-  <LINK href="main.css" rel="stylesheet" type="text/css">
-  <script type="text/JavaScript" src="site.js"></script>
-  <script type="text/JavaScript" src="main.js"></script>
+*;
+
+  foreach (@{$add}) {
+    print "<LINK href=\"$_\" rel=\"stylesheet\" type=\"text/css\">\n" if (/\.css$/);
+    print "<script type=\"text/JavaScript\" src=\"$_\"></script>\n" if (/\.js$/);
+  }
+
+  print qq*
 </head>
 <body>
   <!-- Main table -->
@@ -123,6 +126,23 @@ sub print_head {
     <tr><td class="mainframe" heigth=100% valign=top>
 *;
 }
+
+################################################
+sub print_head {
+  my $u = shift;
+
+  # main menu buttons
+  my $pages = [
+    {url => 'news',      title => 'Новости'},
+    {url => 'pcat',      title => 'Походы'},
+    {url => 'texts',     title => 'Тексты'},
+    {url => 'map.htm',   title => 'Карта'},
+    {url => 'help',      title => 'Справка'},
+    {url => 'users',     title => 'Люди', level => $LEVEL_MODER},
+  ];
+  print_head_simple($u, $pages, ['main.css', 'site.js', 'main.js']);
+}
+
 
 ################################################
 sub print_tail {

@@ -568,6 +568,7 @@ sub sti_guess_form{
 
     if ($form && $uid ne $v->{user}) {
       $input .= "<select name=\"var$i\">\n";
+      $input .= "<option value=\"\">не знаю...</option>\n";
       foreach (sort keys %users){
         my $v_uid = $_;
         my $v_name = $st->{names}->{$_} || $_;
@@ -753,8 +754,9 @@ sub sti_print_res{
         print"<td width=50px align=center>$sym</td>\n";
     }
 
+    my $r = $r1{$v_uid} || 0;
     print qq*
-      <td align=center>$r1{$v_uid}</td>
+      <td align=center>$r</td>
       </tr>\n*;
   }
   print qq*
@@ -763,7 +765,7 @@ sub sti_print_res{
       <td align=right>за догадливость:</td>\n*;
   foreach (sort keys %{$st->{guesses}}){
     my $r = $r2{$_} || 0;
-    print"<td align=center>$r2{$_}</td>\n";
+    print"<td align=center>$r</td>\n";
   }
   print qq*
       <td><br></td>

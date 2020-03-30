@@ -1,0 +1,4 @@
+target=test
+
+scp $1 xyzr:/var/www/$target/data/sti/
+ssh xyzr chmod 666 /var/www/$target/data/sti/$1

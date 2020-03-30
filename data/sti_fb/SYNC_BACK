@@ -1,0 +1,4 @@
+target=test
+target=main
+
+rsync -av xyzr:/var/www/$target/data/sti/ ./

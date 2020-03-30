@@ -696,6 +696,14 @@ sub sti_print_res{
   }
   print "<td align=center>за непохожесть<br>на себя</td></tr>\n";
 
+  # обнулить результаты авторов всех вариантов,
+  # чтобы они попали в итоговую таблицу, даже
+  # если они ничего не угадывали и их не угадывали
+  for (my $i=0; $i <= $#{$st->{vars}}; $i++){
+    my $var=${$st->{vars}}[$i];
+    $r{$var->{user}} = 0;
+  }
+
   # для каждого варианта
   for (my $i=0; $i <= $#{$st->{vars}}; $i++){
     my $var=${$st->{vars}}[$i];
@@ -704,7 +712,6 @@ sub sti_print_res{
     my $v_shname = $st->{sh_names}->{$v_uid};
     $v_uid = $v_shname = 'A' if $i==0;
 
-    $r{$v_uid} = 0;
     print qq*
       <tr>
         <td>$v_shname</td>

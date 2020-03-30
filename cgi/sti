@@ -239,7 +239,7 @@ sub sti_read{
     t2=>48,
     n2min=>3,
     auth=>'',
-    allow_other=>'off',
+    allow_others=>'off',
   };
 
   open IN, "$datadir/$id" or
@@ -262,7 +262,7 @@ sub sti_read{
       if (/ t2=\"(\d+)\"/)    {$st->{t2}=$1;}
       if (/ n2min=\"(\d+)\"/) {$st->{n2min}=$1;}
       if (/ auth=\"([^\"]+)\"/)  {$st->{auth}=$1;}
-      if (/ allow_other/)        {$st->{allow_other}='on';}
+      if (/ allow_others/)        {$st->{allow_others}='on';}
       $st->{text}='';
     }
     elsif (/^\s*<var/){

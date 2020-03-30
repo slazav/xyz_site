@@ -712,6 +712,11 @@ sub sti_print_res{
     my $v_shname = $st->{sh_names}->{$v_uid};
     $v_uid = $v_shname = 'A' if $i==0;
 
+    # r1 - очки "за непохожесть", которые показываются
+    # в правой строке. Их надо обнулять перед каждой стройкой,
+    # так как один автор может иметь несколько вариантов
+    $r1{$var->{user}} = 0;
+
     print qq*
       <tr>
         <td>$v_shname</td>
@@ -743,19 +748,19 @@ sub sti_print_res{
         }
         # угадал
         elsif ($v_uid eq $r_uid){
-          $sym="<font color=darkred><b>$r_shname</b></font>";
           $r1{$v_uid} = ($r1{$v_uid} || 0)-1;
           $r2{$g_uid} = ($r2{$g_uid} || 0)+1;
           $r{$v_uid}  = ($r{$v_uid} || 0)-1;
           $r{$g_uid}  = ($r{$g_uid} || 0)+1;
+          $sym="<font color=darkred><b>$r_shname</b></font>";
         }
         # не угадал
         else {
-          $sym=$r_shname;
           $r1{$v_uid} = ($r1{$v_uid} || 0)+1;
           $r2{$g_uid} = ($r2{$g_uid} || 0)-1;
           $r{$v_uid}  = ($r{$v_uid} || 0)+1;
           $r{$g_uid}  = ($r{$g_uid} || 0)-1;
+          $sym=$r_shname;
         }
 
         print"<td width=50px align=center>$sym</td>\n";

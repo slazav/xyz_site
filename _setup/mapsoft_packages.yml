@@ -19,7 +19,8 @@
       - { name: 'libproj-dev' }
       - { name: 'libboost-dev' }
       - { name: 'libcairomm-1.0-dev' }
-      - { name: 'libgtkmm-2.4-dev' }
+      - { name: 'libgtkmm-3.0-dev' }
+      - { name: 'librsvg2-dev' }
       - { name: 'libpng-dev' }
       - { name: 'libjpeg-dev' }
       - { name: 'libtiff-dev' }

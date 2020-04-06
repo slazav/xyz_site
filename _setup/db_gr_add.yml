@@ -13,6 +13,7 @@
        - {port: "8086", name: "rota",     home: "{{datadir}}db_rota"}
        - {port: "8089", name: "misc",     home: "{{datadir}}db_misc"}
        - {port: "8090", name: "test",     home: "{{datadir}}db_test"}
+       - {port: "8091", name: "f2",       home: "{{datadir}}db_f2"}
   tasks:
 
 

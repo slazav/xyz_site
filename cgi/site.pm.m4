@@ -21,6 +21,7 @@ our $site_url        = 'SITE_URL';
 our $site_url_https  = 'SITE_URL_S';
 our $site_wwwdir     = 'SITE_WWWDIR';
 our $site_datadir    = 'SITE_WWWDIR/data';
+our $site_logdir    = 'SITE_WWWDIR/logs';
 our $database        = 'DATABASE';
 
 our $facebook_id     = 'FACEBOOK_ID';
@@ -31,6 +32,9 @@ our $loginza_secret  = 'LOGINZA_SECRET';
 
 our $google_id       = 'GOOGLE_ID';
 our $google_secret   = 'GOOGLE_SECRET';
+
+our $my_secret1   = 'MY_SECRET1';
+our $my_secret2   = 'MY_SECRET2';
 
 
 1;

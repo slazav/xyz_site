@@ -1,3 +1,6 @@
-m4 -D SITE_NAME=main ../defs.m4 defs.m4 site.pm.m4 > site.pm
+target=main
+target=test
 
-rsync -av --exclude '*.m4' --delete ./ xyzr:/var/www/main/cgi/
+m4 -D SITE_NAME=$target ../defs.m4 defs.m4 site.pm.m4 > site.pm
+
+rsync -av --exclude '*.m4' --delete ./ xyzr:/var/www/$target/cgi/

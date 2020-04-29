@@ -109,22 +109,16 @@ sub sti_list{
 
 sub sti_get_new{
   my $st={};
-  $st->{text}=escapeHTML(param('text')||'');
-  $st->{auth}=escapeHTML(param('auth'));
-  $st->{t1}=escapeHTML(param('t1'));
-  $st->{t2}=escapeHTML(param('t2'));
-  $st->{n1min}=escapeHTML(param('n1min'));
-  $st->{n1max}=escapeHTML(param('n1max')); 
-  $st->{n1u}=escapeHTML(param('n1u'));
-  $st->{n2min}=escapeHTML(param('n2min'));
+  $st->{text}=escapeHTML(param('text') || '');
+  $st->{auth}=escapeHTML(param('auth') || '');
+  $st->{t1}=escapeHTML(param('t1') || 48);
+  $st->{t2}=escapeHTML(param('t2') || 48);
+  $st->{n1min}=escapeHTML(param('n1min') || 3);
+  $st->{n1max}=escapeHTML(param('n1max') || 20); 
+  $st->{n1u}=escapeHTML(param('n1u') || 2);
+  $st->{n2min}=escapeHTML(param('n2min') || 3);
   $st->{allow_others}=defined param('allow_others')?'on':'';
-
-  $st->{t1}=48 if $st->{t1} eq '';
-  $st->{t2}=48 if $st->{t2} eq '';
-  $st->{n1min}=3  if $st->{n1min} eq '';
-  $st->{n1max}=20 if $st->{n1max} eq '';
-  $st->{n1u}=2 if $st->{n1u} eq '';
-  $st->{n2min}=3 if $st->{n2min} eq '';
+  $st->{auth_factor} = escapeHTML(param('auth_factor') || 1);
 
   $st->{text}=~tr/\r//d;
   $st->{auth}=~tr/\r//d;
@@ -142,6 +136,8 @@ sub sti_get_new{
     unless $st->{n1u}=~/^\d+$/;
   $st->{error}="минимальное число отгадывающих -- не число"
     unless $st->{n2min}=~/^\d+$/;
+  $st->{error}="множитель для авторских вариантов должен иметь значение от 1 до 5"
+    unless $st->{auth_factor}=~/^[1-5]$/;
 
   my $var=sti_get_var();
   $var->{text} = $st->{text}."\n".$var->{text};
@@ -240,10 +236,11 @@ sub sti_read{
     n2min=>3,
     auth=>'',
     allow_others=>'off',
+    auth_factor=>1,
   };
 
   open IN, "$datadir/$id" or
-    sti_tail("Ошибка: файл $datadir/$id не открывается.", 1);
+    sti_tail("Ошибка: файл $datadir/$id не открывается: $!", 1);
   binmode IN, ':encoding(UTF-8)';
 
   my $nvar=-1;
@@ -262,7 +259,8 @@ sub sti_read{
       if (/ t2=\"(\d+)\"/)    {$st->{t2}=$1;}
       if (/ n2min=\"(\d+)\"/) {$st->{n2min}=$1;}
       if (/ auth=\"([^\"]+)\"/)  {$st->{auth}=$1;}
-      if (/ allow_others/)        {$st->{allow_others}='on';}
+      if (/ allow_others/)       {$st->{allow_others}='on';}
+      if (/ auth_factor=\"([0-5])\"/) {$st->{auth_factor}=$1;}
       $st->{text}='';
     }
     elsif (/^\s*<var/){
@@ -449,6 +447,10 @@ sub sti_new_form{
   	<th><input type=checkbox name=allow_others size=3 maxlength=3 $allow_others></td>
   	<td>Разрешать угадывать тем, кто не давал своего варианта</td>
       </tr>
+      <tr>
+  	<th><input type=text name=auth_factor size=3 maxlength=3 value="$st->{auth_factor}"></td>
+  	<td>Множитель очков для угадывания авторского варианта (1..5)</td>
+      </tr>
     </table>
 
     <p><div align=center>
@@ -627,7 +629,7 @@ sub sti_write_new{
   my $allow_others = $st->{allow_others} ? ' allow_others':'';
   print OUT "<game t1=\"$st->{t1}\" n1min=\"$st->{n1min}\" n1max=\"$st->{n1max}\" ".
             "n1u=\"$st->{n1u}\" t2=\"$st->{t2}\" n2min=\"$st->{n2min}\" ".
-            "auth=\"$st->{auth}\"$allow_others>\n".
+            "auth=\"$st->{auth}\" auth_factor=\"$st->{auth_factor}\"$allow_others>\n".
             $st->{text}. "\n";
 
   close OUT;
@@ -689,12 +691,13 @@ sub sti_print_res{
 
   print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
 
-  print "<tr><td colspan=2 align=right>угадывали:</td>\n";
+  print "<tr><td align=right valign=bottom>угадывали:</td>\n";
   foreach (sort keys %{$st->{guesses}}){
-    my $sn = $st->{sh_names}->{$_};
-    print"<td align=center>$sn</td>\n";
+    #my $sn = $st->{sh_names}->{$_};
+    my $n = $st->{names}->{$_};
+    print"<td style='text-align: center; vertical-align:bottom; writing-mode: vertical-rl;'>$n</td>\n";
   }
-  print "<td align=center>за непохожесть<br>на себя</td></tr>\n";
+  print "<td valign=bottom>за непохожесть<br>на себя</td></tr>\n";
 
   # обнулить результаты авторов всех вариантов,
   # чтобы они попали в итоговую таблицу, даже
@@ -709,8 +712,10 @@ sub sti_print_res{
     my $var=${$st->{vars}}[$i];
 
     my $v_uid = $var->{user};
-    my $v_shname = $st->{sh_names}->{$v_uid};
+    my $v_shname = $st->{sh_names}->{$v_uid}; # short name
+    my $v_name = $st->{names}->{$v_uid}; # short name
     $v_uid = $v_shname = 'A' if $i==0;
+    $v_name = 'Автор' if $i==0;
 
     # r1 - очки "за непохожесть", которые показываются
     # в правой строке. Их надо обнулять перед каждой стройкой,
@@ -719,8 +724,8 @@ sub sti_print_res{
 
     print qq*
       <tr>
-        <td>$v_shname</td>
-        <td><pre>$var->{text}</pre></td>\n*;
+        <td><font color='darkgreen'>$v_name ($v_shname):</font></text>
+        <br><pre>$var->{text}</pre></td>\n*;
 
     # для каждого угадывающего
     foreach (sort keys %{$st->{guesses}}){
@@ -729,6 +734,7 @@ sub sti_print_res{
         # тот, кто угадывал
         my $g_uid  = $_;
         my $g_shname = $st->{sh_names}->{$g_uid};
+        my $g_name = $st->{names}->{$g_uid};
 
         # тот, кого он предположил
 
@@ -737,6 +743,8 @@ sub sti_print_res{
         my $r_shname = ($r_uid eq 'A')? 'A' : $st->{sh_names}->{$r_uid};
 
         my $sym;
+        my $k = 1;
+        $k *= $st->{auth_factor} if $r_uid eq 'A';
 
         # не угадывал
         if (!$r_uid){
@@ -748,19 +756,19 @@ sub sti_print_res{
         }
         # угадал
         elsif ($v_uid eq $r_uid){
-          $r1{$v_uid} = ($r1{$v_uid} || 0)-1;
-          $r2{$g_uid} = ($r2{$g_uid} || 0)+1;
-          $r{$v_uid}  = ($r{$v_uid} || 0)-1;
-          $r{$g_uid}  = ($r{$g_uid} || 0)+1;
-          $sym="<font color=darkred><b>$r_shname</b></font>";
+          $r1{$v_uid} = ($r1{$v_uid} || 0)-$k;
+          $r2{$g_uid} = ($r2{$g_uid} || 0)+$k;
+          $r{$v_uid}  = ($r{$v_uid} || 0)-$k;
+          $r{$g_uid}  = ($r{$g_uid} || 0)+$k;
+          $sym="<font color=darkgreen><b>$r_shname</b></font>";
         }
         # не угадал
         else {
-          $r1{$v_uid} = ($r1{$v_uid} || 0)+1;
-          $r2{$g_uid} = ($r2{$g_uid} || 0)-1;
-          $r{$v_uid}  = ($r{$v_uid} || 0)+1;
-          $r{$g_uid}  = ($r{$g_uid} || 0)-1;
-          $sym=$r_shname;
+          $r1{$v_uid} = ($r1{$v_uid} || 0)+$k;
+          $r2{$g_uid} = ($r2{$g_uid} || 0)-$k;
+          $r{$v_uid}  = ($r{$v_uid} || 0)+$k;
+          $r{$g_uid}  = ($r{$g_uid} || 0)-$k;
+          $sym="<font color=darkred><b>$r_shname</b></font>";
         }
 
         print"<td width=50px align=center>$sym</td>\n";
@@ -771,19 +779,27 @@ sub sti_print_res{
       <td align=center>$r</td>
       </tr>\n*;
   }
-  print qq*
-    <tr>
-      <td><br></td>
-      <td align=right>за догадливость:</td>\n*;
+
+  print "<tr><td align=right>угадывали:</td>\n";
+  foreach (sort keys %{$st->{guesses}}){
+    #my $sn = $st->{sh_names}->{$_};
+    my $n = $st->{names}->{$_};
+    print"<td align=center style='writing-mode: vertical-rl;'>$n</td>\n";
+  }
+  print "<td align=center>&nbsp;</td></tr>\n";
+
+
+  print "<tr><td align=right>очки за догадливость:</td>\n";
   foreach (sort keys %{$st->{guesses}}){
     my $r = $r2{$_} || 0;
     print"<td align=center>$r</td>\n";
   }
+  print "<td>&nbsp;</td></tr>\n";
+
+
   print qq*
-      <td><br></td>
       </tr>
     </table>\n*;
-
 
   $r{$m_uid}=$r{${$st->{vars}}[0]->{user}};
   delete($r{${$st->{vars}}[0]->{user}});

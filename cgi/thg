@@ -32,7 +32,7 @@ sub geo_dist($$$$) {
   my $x2 = shift;
   my $y2 = shift;
   my $d2r = 3.1415926/180.0;
-  my $R = 6380e3; # metres
+  my $R = 6380e3; # meters
   my $cy1 = cos($y1 * $d2r);
   my $cy2 = cos($y2 * $d2r);
   my $hdx = (1 - cos(($x2 - $x1) * $d2r))/2;
@@ -116,9 +116,6 @@ sub print_html_header{
 }
 
 sub print_html_tail{
-  my $msg=shift;
-  my $ref=shift;
-  sti_msg($msg) if $msg;
   print <<EOF
     </tr></table>
     <div align=right><i>slazav at altlinux.org, 04.2020</div>
@@ -168,6 +165,7 @@ try {
   # Read team information if <tid> exists
   $team = read_team(param('tid'));
 
+  ###############################
   # Name is not empty: generate team id,
   # update team information, go to the first point
   if ($name) {
@@ -178,14 +176,21 @@ try {
     $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
     die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
     write_team($team);
-    write_log("add user: $name, $tid, $t")
+    write_log("add user: $name, $tid, $t");
+    print header(-type=>'text/html', -charset=>'utf-8');
+    print qq*
+      <!DOCTYPE html><html><head>
+      <META HTTP-EQUIV=refresh CONTENT=\"0;URL=$myurl?tid=$tid\">
+      </head></html>
+    *;
+
   }
 
   ###############################
 
   # Answer is not empty. Check is it correct or not,
   # update team information, go to next/same point.
-  if ($team && $pt && $ans) {
+  elsif ($team && $pt && $ans) {
     die "To open this puzzle you should answer the previous one\n" if $team->{pt}+1 < $pt;
     die "You already solved this puzzle\n" if $team->{pt}+1 > $pt;
 
@@ -349,10 +354,11 @@ try {
     <h3>Treasure hunting game in Lancaster</h3>
 
     <p>The game is a sequence of puzzles. Each one describes
-    some place within 10 km radius from Lancaster railway station and has
+    some place within 5 mi radius from Lancaster railway station and has
     a question which you can answer after visiting the place. When you
     solve a puzzle, you can see the next one.
     Please do not reveal any information about places and correct answers.
+    Good luck!
     *;
 
     print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
@@ -400,7 +406,7 @@ try {
       print "<p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>\n";
     }
     else {
-      print "<p>If you want to play, enter your name or name of your team and go to the first puzzle:\n",
+      print "<p>If you want to play, enter name of your team and go to the first puzzle:\n",
             "<br><form action='$myurl' method=get>\n",
             "<input name=name width=20> <input type=submit value='Go!'></form>\n";
     }

@@ -369,6 +369,7 @@ try {
     }
     print "<tr>\n";
 
+    @teams = sort {$a->{ctime} <=> $b->{ctime}} @teams;
     foreach my $team (sort {$b->{pt} <=> $a->{pt}} @teams) {
       next if $team->{id} eq $site::my_secret2;
       print "<tr><th valign=top>$team->{name}</th>\n";

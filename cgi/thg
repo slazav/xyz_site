@@ -47,6 +47,13 @@ sub write_team($){
   print OUT JSON->new->utf8->canonical()->encode($team), "\n";
   close OUT;
 }
+
+sub delete_team($){
+  my $team = shift;
+  die "can't delete team data: no id\n" unless $team->{id};
+  unlink "$datadir/$tpref$team->{id}.js" or die "can't delete team data: $!\n";
+}
+
 sub read_team($){
   my $tid = shift;
   return '' unless $tid;
@@ -166,21 +173,33 @@ try {
   $team = read_team(param('tid'));
 
   ###############################
-  # Name is not empty: generate team id,
-  # update team information, go to the first point
+  # Name is not empty: create/rename/delete team
+  # update team information, redirect to the main page
   if ($name) {
-    $pt = 1;
-    $ans = ''; # do not get answers from new team!
     my $t = time();
-    my $tid = md5_hex($name.$site::my_secret1.$t);
-    $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
-    die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
-    write_team($team);
-    write_log("add user: $name, $tid, $t");
+    if ($team && param('Delete')){
+      write_log("delete user: $t, $team->{id}: $name");
+      delete_team($team);
+      undef $team;
+    }
+    elsif ($team && param('Rename')){
+      write_log("rename user: $t, $team->{id}: $team-{name} -> $name");
+      $team->{name} = $name;
+      write_team($team);
+    }
+    else {
+      $ans = ''; # do not get answers from new team!
+      my $tid = md5_hex($name.$site::my_secret1.$t);
+      $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
+      die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
+      write_log("add user: $t, $tid: $name");
+      write_team($team);
+    }
+    my $l = $team? "?tid=$team->{id}":"";
     print header(-type=>'text/html', -charset=>'utf-8');
     print qq*
       <!DOCTYPE html><html><head>
-      <META HTTP-EQUIV=refresh CONTENT=\"0;URL=$myurl?tid=$tid\">
+      <META HTTP-EQUIV=refresh CONTENT=\"0;URL=$myurl$l\">
       </head></html>
     *;
 
@@ -403,13 +422,22 @@ try {
 
     if ($team) {
       my $next = $team->{pt}+1;
-      print "<p>Your team name is: $team->{name}\n";
-      print "<p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>\n";
+      print qq*
+        <br><form action='$myurl' method=get>
+        Your team name is:
+        <b><input name=name width=20 value="$team->{name}"></b>
+        <input type=hidden name=tid value='$team->{id}'>
+        <input type=submit name='Rename' value='Rename'>
+        <input type=submit name='Delete' value='Delete'></form>
+        <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
+      *;
     }
     else {
-      print "<p>If you want to play, enter name of your team and go to the first puzzle:\n",
-            "<br><form action='$myurl' method=get>\n",
-            "<input name=name width=20> <input type=submit value='Go!'></form>\n";
+      print qq*
+        <p>If you want to play, enter name of your team and go to the first puzzle:
+        <br><form action='$myurl' method=get>
+        <input name=name width=20> <input type=submit value='Go!'></form>
+      *;
     }
     print_html_tail();
   }

@@ -15,6 +15,8 @@ use Try::Tiny;
 use Math::Trig;
 use POSIX qw(strftime);
 
+$ENV{TZ} = 'Europe/London';
+
 my $datadir="$site::site_datadir/thg";
 binmode STDOUT, ':encoding(UTF-8)';
 
@@ -246,7 +248,8 @@ try {
     }
 
     $res = $res && ($ans1 eq $ans2);
-    if (${$team->{atimes}}[$pt] && (time() - ${$team->{atimes}}[$pt])<3600*24){
+    my $next_day = ${$team->{atimes}}[$pt] + 3600*24;
+    if (${$team->{atimes}}[$pt] && (time()<$next_day)){
       ${$team->{guesses_per_day}}[$pt] += 1;
     }
     else {
@@ -272,8 +275,9 @@ try {
 
     print_html_header(); # no errors below this point!
     if ($gpd){
+      my $next_day_t = strftime("%Y-%m-%d %H:%M", localtime($next_day));
       print qq*
-        <h3><font color=red>Only $max_gpd guesses per day are allowed!</font></h3>
+        <h3><font color=red>After $max_gpd wrong guesses you should wait 24 h, until $next_day_t.</font></h3>
       *;
     }
     elsif ($res){
@@ -428,7 +432,7 @@ try {
         <b><input name=name width=20 value="$team->{name}"></b>
         <input type=hidden name=tid value='$team->{id}'>
         <input type=submit name='Rename' value='Rename'>
-        <input type=submit name='Delete' value='Delete'></form>
+        <!--input type=submit name='Delete' value='Delete'--></form>
         <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
       *;
     }

@@ -84,8 +84,21 @@ sub write_log {
   my ($S,$M,$H,$d,$m,$Y) = localtime;
   my $tstamp = sprintf("%04d-%02d-%02d %02d:%02d:%02d",
                         $Y+1900, $m+1,$d,$H,$M,$S);
-  open LOG, ">> $file";
+  open LOG, ">> $file" or return;
   printf LOG "%s %s\n", $tstamp, $msg;
+  close LOG;
+}
+
+############################################################
+# write safe log
+sub write_safe_log {
+  my $msg  = shift;
+  my $file = "$site::site_htmldir/thg.txt";
+  my ($S,$M,$H,$d,$m,$Y) = localtime;
+  my $tstamp = sprintf("%04d-%02d-%02d %02d:%02d:%02d",
+                        $Y+1900, $m+1,$d,$H,$M,$S);
+  open LOG, ">> $file"  or return;
+  printf LOG "%s: %s\n", $tstamp, $msg;
   close LOG;
 }
 
@@ -166,7 +179,7 @@ try {
 
   # get and check parameters
   my $pt   = cleanup_int(param('pt') || 0);  # requested point number
-  my $name = cleanup_txt(param('name')); # team name (beginning of the game)
+  my $name = cleanup_txt(scalar param('name')); # team name (beginning of the game)
   my $lat  = param('lat') || 0;
   my $lon  = param('lon') || 0;
   my $ans  = param('ans');
@@ -181,13 +194,17 @@ try {
     my $t = time();
     if ($team && param('Delete')){
       write_log("delete user: $t, $team->{id}: $name");
+      write_safe_log("delete: $name");
       delete_team($team);
       undef $team;
     }
     elsif ($team && param('Rename')){
-      write_log("rename user: $t, $team->{id}: $team-{name} -> $name");
-      $team->{name} = $name;
-      write_team($team);
+      if ($team->{name} ne $name) {
+        write_log("rename user: $t, $team->{id}: $team->{name} -> $name");
+        write_safe_log("rename: $team->{name} -> $name");
+        $team->{name} = $name;
+        write_team($team);
+      }
     }
     else {
       $ans = ''; # do not get answers from new team!
@@ -195,6 +212,7 @@ try {
       $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
       die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
       write_log("add user: $t, $tid: $name");
+      write_safe_log("new team: $name");
       write_team($team);
     }
     my $l = $team? "?tid=$team->{id}":"";
@@ -258,20 +276,29 @@ try {
     my $max_gpd = $point->{max_gpd} || $max_gpd_def;
     my $gpd = ${$team->{guesses_per_day}}[$pt] > $max_gpd;
 
+
     if (!$gpd) {
       ${$team->{guesses}}[$pt] += 1;
       ${$team->{answers}}[$pt] = [$ans, $lat, $lon];
       ${$team->{atimes}}[$pt] = time();
 
       if ($res){
+        write_safe_log("$team->{name} answers #$pt: correct (guess ${$team->{guesses}}[$pt])!");
         $team->{pt}++;
         $pt++;
       }
+      else {
+        write_safe_log("$team->{name} answers #$pt: wrong (guess ${$team->{guesses}}[$pt])!");
+      }
       write_team($team);
+    }
+    else {
+      write_safe_log("$team->{name} answers #$pt: too many guesses during last 24 hours!");
     }
 
     write_log("result: guesses: ${$team->{guesses}}[$pt], per day: ${$team->{guesses_per_day}}[$pt], ".
               "gpd: $gpd, res: $res");
+
 
     print_html_header(); # no errors below this point!
     if ($gpd){
@@ -443,6 +470,18 @@ try {
         <input name=name width=20> <input type=submit value='Go!'></form>
       *;
     }
+    if (open HH, "$site::site_htmldir/thg.txt") {
+      print "<h3>Game history</h3>\n";
+      my $d0;
+      foreach (reverse <HH>) {
+        $_ =~ /(\S+)\s+(\S+):\s+(.*)/;
+        print "<h4>$1</h4>" if ($1 ne $d0);
+        $d0=$1;
+        print "<b>$2:</b> $3<br>\n";
+      }
+      close HH;
+    }
+
     print_html_tail();
   }
 }

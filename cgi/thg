@@ -93,7 +93,7 @@ sub write_log {
 # write safe log
 sub write_safe_log {
   my $msg  = shift;
-  my $file = "$site::site_htmldir/thg.txt";
+  my $file = "$site::site_logdir/thg_safe.log";
   my ($S,$M,$H,$d,$m,$Y) = localtime;
   my $tstamp = sprintf("%04d-%02d-%02d %02d:%02d:%02d",
                         $Y+1900, $m+1,$d,$H,$M,$S);
@@ -292,9 +292,6 @@ try {
       }
       write_team($team);
     }
-    else {
-      write_safe_log("$team->{name} answers #$pt: too many guesses during last 24 hours!");
-    }
 
     write_log("result: guesses: ${$team->{guesses}}[$pt], per day: ${$team->{guesses_per_day}}[$pt], ".
               "gpd: $gpd, res: $res");
@@ -470,7 +467,7 @@ try {
         <input name=name width=20> <input type=submit value='Go!'></form>
       *;
     }
-    if (open HH, "$site::site_htmldir/thg.txt") {
+    if (open HH, "$site::site_logdir/thg_safe.log") {
       print "<h3>Game history</h3>\n";
       my $d0;
       foreach (reverse <HH>) {

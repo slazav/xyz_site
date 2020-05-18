@@ -42,18 +42,27 @@ sub geo_dist($$$$) {
   return 2*$R * asin(sqrt($hdy + $cy1*$cy2*$hdx));
 }
 ##################################
-sub write_team($){
-  my $team = shift;
 
-  # convert old (pt) to new (res)
-  if ($team->{pt} && !exists($team->{res})) {
-    $team->{res} = [];
+# old->new format
+sub convert_team($){
+  my $team = shift;
+  return unless $team;
+  if (exists($team->{pt}) &&
+     !exists($team->{solved}) &&
+     !exists($team->{opened})) {
+    $team->{solved} = {};
+    $team->{opened} = {1=>1};
     for (my $i=1; $i <= $team->{pt}; $i++) {
-      $team->{res}->[$i] = 1;
+      $team->{solved}->{$i}   = 1;
+      $team->{opened}->{$i+1} = 1;
     }
   }
   delete $team->{pt};
+}
 
+sub write_team($){
+  my $team = shift;
+  convert_team $team;
   die "can't save team data: no id\n" unless $team->{id};
   open OUT, "> $datadir/$tpref$team->{id}.js" or die "can't save team data: $!\n";
   print OUT JSON->new->utf8->canonical()->encode($team), "\n";
@@ -72,16 +81,7 @@ sub read_team($){
   open IN, "$datadir/$tpref$tid.js" or die "can't load team data: $!\n";
   my $team = decode_json(join(' ', <IN>));
   close IN;
-
-  # convert old (pt) to new (res)
-  if ($team->{pt} && !exists($team->{res})) {
-    $team->{res} = [];
-    for (my $i=1; $i <= $team->{pt}; $i++) {
-      $team->{res}->[$i] = 1;
-    }
-  }
-  delete $team->{pt};
-
+  convert_team $team;
   return $team;
 }
 sub read_point($){
@@ -129,8 +129,8 @@ sub pt_status {
   my $pt   = shift; # point number, 1...
 
   return 0 unless $team;
-  return 2 if $team->{res}->[$pt];
-  return 1 if $pt==1 || $team->{res}->[$pt-1];
+  return 2 if $team->{solved}->{$pt};
+  return 1 if $team->{opened}->{$pt};
   return 0;
 }
 
@@ -306,7 +306,8 @@ sub on_answer_request {
 
     if ($res){
       write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess ${$team->{guesses}}[$pt])!");
-      $team->{res}->[$pt] = 1;
+      $team->{solved}->{$pt}   = 1;
+      $team->{opened}->{$pt+1} = 1;
       $pt++;
     }
     else {
@@ -438,7 +439,7 @@ sub print_main_page{
   print "<tr>\n";
 
   @teams = sort {$a->{ctime} <=> $b->{ctime}} @teams;
-  foreach my $team (sort {$#{$b->{res}} <=> $#{$a->{res}}} @teams) {
+  foreach my $team (sort {keys %{$b->{solved}} <=> keys %{$a->{solved}}} @teams) {
     next if $team->{id} eq $site::my_secret2;
     print "<tr><th valign=top>$team->{name}</th>\n";
     for (my $pt = 1; $pt<=$ptn; $pt++) {
@@ -542,7 +543,7 @@ try {
     print_point_page $team, $pt;
   }
   ###############################
-  # Print main page. Team may be ampty or non-empty
+  # Print main page. Team may be empty or non-empty
   else {
     print_main_page $team;
   }

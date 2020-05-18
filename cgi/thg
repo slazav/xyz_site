@@ -205,6 +205,311 @@ sub print_html_error($$) {
 *;
 }
 
+##################################
+##################################
+sub on_name_request{
+  my $team = shift;
+  my $name = shift;
+
+  my $t = time();
+  if ($team && param('Delete')){
+    write_log("delete user: $t, $team->{id}: $name");
+    write_safe_log("delete: <span class=tname>$name</span>");
+    delete_team($team);
+    undef $team;
+  }
+  elsif ($team && param('Rename')){
+    if ($team->{name} ne $name) {
+      write_log("rename user: $t, $team->{id}: $team->{name} -> $name");
+      write_safe_log("rename: <span class=tname>$team->{name}</span> -> <span class=tname>$name</span>");
+      $team->{name} = $name;
+      write_team($team);
+    }
+  }
+  else {
+    my $tid = md5_hex($name.$site::my_secret1.$t);
+    $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
+    die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
+    write_log("add user: $t, $tid: $name");
+    write_safe_log("new team: <span class=tname>$name</span>");
+    write_team($team);
+  }
+  my $l = $team? "?tid=$team->{id}":"";
+  print header(-type=>'text/html', -charset=>'utf-8');
+  print qq*
+    <!DOCTYPE html><html><head>
+    <META HTTP-EQUIV=refresh CONTENT=\"0;URL=$myurl$l\">
+    </head></html>
+  *;
+}
+
+##################################
+sub on_answer_request {
+  my $team = shift;
+  my $pt   = shift;
+  my $ans  = shift;
+  my $lat  = param('lat') || 0;
+  my $lon  = param('lon') || 0;
+
+  my $st = pt_status($team, $pt);
+  die "To open this puzzle you should answer the previous one\n" if $st==0;
+  die "You already solved this puzzle\n" if $st==2;
+
+  my $point = read_point($pt);
+  die "Bad point information: answer is missing" unless $point->{answer};
+
+  my $res = 1;
+  unless ($point->{skip_coords}) {
+    # coordinates are always positive
+    die "Bad point information: coordinates are missing" unless $point->{lat} && $point->{lon};
+    my $plat = abs($point->{lat});
+    my $plon = abs($point->{lon});
+    my $dist = geo_dist($lon,$lat, $plon, $plat);
+    my $dlim = $point->{dlim} || $dlim_def;
+    $res = $res && ($dist<$dlim);
+  }
+
+  write_log("check answer: team: $team->{name}, id: $team->{id}, pt: $pt, ans: $ans");
+
+  # check answer.
+  my $ans1 = lc $ans;
+  my $ans2 = lc $point->{answer};
+  $ans1 =~ s/^\s+//;
+  $ans1 =~ s/\s+$//;
+
+  if ($point->{nospaces}){
+    $ans1 =~s/\s+//g;
+    $ans2 =~s/\s+//g;
+  }
+
+  if ($point->{list}){
+    $ans1 = join(' ', sort split(/[ ,;]/, $ans1));
+    $ans2 = join(' ', sort split(/[ ,;]/, $ans2));
+  }
+
+  $res = $res && ($ans1 eq $ans2);
+  my $next_day = ${$team->{atimes}}[$pt] + 3600*24;
+  if (${$team->{atimes}}[$pt] && (time()<$next_day)){
+    ${$team->{guesses_per_day}}[$pt] += 1;
+  }
+  else {
+    ${$team->{guesses_per_day}}[$pt] = 1;
+  }
+  my $max_gpd = $point->{max_gpd} || $max_gpd_def;
+  my $gpd = ${$team->{guesses_per_day}}[$pt] > $max_gpd;
+
+
+  if (!$gpd) {
+    ${$team->{guesses}}[$pt] += 1;
+    ${$team->{answers}}[$pt] = [$ans, $lat, $lon];
+    ${$team->{atimes}}[$pt] = time();
+
+    if ($res){
+      write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess ${$team->{guesses}}[$pt])!");
+      $team->{res}->[$pt] = 1;
+      $pt++;
+    }
+    else {
+      write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_wr>wrong</span> (guess ${$team->{guesses}}[$pt])!");
+    }
+    write_team($team);
+  }
+
+  write_log("result: guesses: ${$team->{guesses}}[$pt], per day: ${$team->{guesses_per_day}}[$pt], ".
+            "gpd: $gpd, res: $res");
+
+  print_html_header(); # no errors below this point!
+  if ($gpd){
+    my $next_day_t = strftime("%Y-%m-%d %H:%M", localtime($next_day));
+    print qq*
+      <h3><font color=red>After $max_gpd wrong guesses you should wait 24 h, until $next_day_t.</font></h3>
+    *;
+  }
+  elsif ($res){
+    print "<h3><font color=darkgreen>Answer is correct, congratulations!</font></h3>\n";
+    if (check_point($pt)){
+      print qq*
+        <p><a href='$myurl?tid=$team->{id}&pt=$pt'>Go to the next puzzle (#$pt)...</a>
+      *;
+    }
+    else {  # no more puzzles
+      print qq*
+      <h3>We do not have more puzzles! Maybe later.</a>
+      *;
+    }
+  }
+  else{
+    print qq*
+      <h3><font color=red>Answer is wrong!</font></h3>
+      <p><a href='$myurl?tid=$team->{id}&pt=$pt'>Try again</a>...
+    *;
+  }
+  print qq*
+    <p><a href='$myurl?tid=$team->{id}'>Go to the main page...</a>
+    <br>Save this link to return to your game later.
+    *;
+  print_html_tail();
+}
+
+##################################
+sub print_point_page{
+  my $team = shift;
+  my $pt = shift;
+
+  my $point = read_point($pt);
+
+  print_html_header(); # no errors below this point!
+  my $st = pt_status($team, $pt);
+
+  if ($st==2 || $team->{id} eq $site::my_secret2){
+    print qq*
+    <h3>Puzzle #$pt (solved)</h3>
+    <p><b>$point->{text}</b>
+    *;
+  }
+  elsif ($st==1){
+    my $NS  = $point->{lat}>=0? 'N' : 'S';
+    my $EW  = $point->{lon}>=0? 'E' : 'W';
+    my $max_gpd = $point->{max_gpd} || $max_gpd_def;
+    my $dlim = $point->{dlim} || $dlim_def;
+    print qq*
+      <h3>Puzzle #$pt</h3>
+      <p><b>$point->{text}</b>
+      <form type=get action="$myurl">
+      <p>Enter your answer: <br><input name=ans size=32>
+    *;
+    print qq*
+      <p>Enter point coordinates: <br>$NS <input name=lat size=12> $EW <input name=lon size=12>
+      <p>Coordinates are latitude and longitude in WGS84 degrees, always positive.
+      <br>Example: N 54.04874 W 2.80782 (Lancaster railway station).
+      <br>Accuracy should be better then $dlim m.
+    * unless $point->{skip_coords};
+    print qq*
+      <p>After $max_gpd wrong answers you should wait for 24 hours before answering again.
+      <p><input type=submit value=Submit>
+      <input type=hidden name=tid value='$team->{id}'>
+      <input type=hidden name=pt value='$pt'>
+      </form>
+    *;
+  }
+  else {
+    print qq*
+      <h3>Puzzle #$pt is locked for you</h3>
+    *;
+  }
+  print qq*
+    <p><a href='$myurl?tid=$team->{id}'>return to the main page</a>...
+    <br>Do not forget to save this link to return back to your game later.
+  *;
+  print_html_tail();
+}
+
+##################################
+sub print_main_page{
+  my $team = shift;
+  my $ptn; # last point number
+  for ($ptn = 0; check_point($ptn+1); $ptn++){}
+
+  my @teams;
+  opendir D,$datadir or die "can't open data folder: $!\n";
+  while (my $f = readdir(D)){
+    next unless $f=~/^$tpref(\S+).js$/;
+    push @teams, read_team($1);
+  }
+  print_html_header(); # no errors below this point!
+  print qq*
+  <h3>Treasure hunting game in Lancaster</h3>
+
+  <p>The game is a sequence of puzzles. Each one describes
+  some place within 5 mi radius from Lancaster railway station and has
+  a question which you can answer after visiting the place. When you
+  solve a puzzle, you can see the next one.
+  Please do not reveal any information about places and correct answers.
+  Good luck!
+  *;
+
+  print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
+  print "<tr><th>Puzzles:</th>\n";
+  for (my $pt = 1; $pt<=$ptn; $pt++) {
+    my $st = pt_status($team, $pt);
+    my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$pt'>$pt</a>":"$pt";
+    print "<th style='min-width:5em;'>$l</th>";
+  }
+  print "<tr>\n";
+
+  @teams = sort {$a->{ctime} <=> $b->{ctime}} @teams;
+  foreach my $team (sort {$#{$b->{res}} <=> $#{$a->{res}}} @teams) {
+    next if $team->{id} eq $site::my_secret2;
+    print "<tr><th valign=top>$team->{name}</th>\n";
+    for (my $pt = 1; $pt<=$ptn; $pt++) {
+      my $col = 'white';
+      my $g = ${$team->{guesses}}[$pt] || 0;
+      $g = $g ? "<br><font size=-2 color=grey>guesses: $g</font>" : '';
+      my $t = '';
+      my $m = '';
+
+      my $st = pt_status($team, $pt);
+      if ($st==2){
+        $col = 'lightgreen';
+        $m = '<b>DONE</b>';
+        $t = ${$team->{atimes}}[$pt];
+        $t = $t ? strftime("%Y-%m-%d", localtime($t)) : '';
+        $t = $t ? "<br><font size=-2 color=grey>$t</font>" : '';
+      }
+      elsif ($st==1){
+        $col = 'yellow';
+        $m = 'In progress';
+      }
+      else{
+        $col = 'white';
+        $g = '';
+      }
+      print "<td bgcolor=$col>$m$t$g</td>\n";
+    }
+    print "</tr>\n";
+  }
+  print "</table>\n";
+
+  if ($team) {
+#      my $next = $team->{res}->[]+1;
+#        <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
+    print qq*
+      <br><form action='$myurl' method=get>
+      Your team name is:
+      <b><input name=name width=20 value="$team->{name}"></b>
+      <input type=hidden name=tid value='$team->{id}'>
+      <input type=submit name='Rename' value='Rename'>
+      <!--input type=submit name='Delete' value='Delete'--></form>
+
+      <p>If you want to share this game with other people use this link:
+      <a href="http://slazav.xyz/thg">http://slazav.xyz/thg</a>
+
+      <p>To return back to your game or to share it with teammates use this link:
+      <a href="http://slazav.xyz/thg?tid=$team->{id}">http://slazav.xyz/thg?tid=$team->{id}</a>
+    *;
+  }
+  else {
+    print qq*
+      <p>If you want to play, enter name of your team and go to the first puzzle:
+      <br><form action='$myurl' method=get>
+      <input name=name width=20> <input type=submit value='Go!'></form>
+    *;
+  }
+  if (open HH, "$site::site_logdir/thg_safe.log") {
+    print "<h3>Game history</h3>\n";
+    my $d0='';
+    foreach (reverse <HH>) {
+      $_ =~ /(\S+)\s+(\S+):\s+(.*)/;
+      print "<h4>$1</h4>" if ($1 ne $d0);
+      $d0=$1;
+      print "<b>$2:</b> $3<br>\n";
+    }
+    close HH;
+  }
+
+  print_html_tail();
+}
+
 
 ##################################
 my $team;
@@ -214,8 +519,6 @@ try {
   # get and check parameters
   my $pt   = cleanup_int(param('pt') || 0);  # requested point number
   my $name = cleanup_txt(scalar param('name')); # team name (beginning of the game)
-  my $lat  = param('lat') || 0;
-  my $lon  = param('lon') || 0;
   my $ans  = param('ans');
 
   # Read team information if <tid> exists
@@ -225,305 +528,23 @@ try {
   # Name is not empty: create/rename/delete team
   # update team information, redirect to the main page
   if ($name) {
-    my $t = time();
-    if ($team && param('Delete')){
-      write_log("delete user: $t, $team->{id}: $name");
-      write_safe_log("delete: <span class=tname>$name</span>");
-      delete_team($team);
-      undef $team;
-    }
-    elsif ($team && param('Rename')){
-      if ($team->{name} ne $name) {
-        write_log("rename user: $t, $team->{id}: $team->{name} -> $name");
-        write_safe_log("rename: <span class=tname>$team->{name}</span> -> <span class=tname>$name</span>");
-        $team->{name} = $name;
-        write_team($team);
-      }
-    }
-    else {
-      $ans = ''; # do not get answers from new team!
-      my $tid = md5_hex($name.$site::my_secret1.$t);
-      $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
-      die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
-      write_log("add user: $t, $tid: $name");
-      write_safe_log("new team: <span class=tname>$name</span>");
-      write_team($team);
-    }
-    my $l = $team? "?tid=$team->{id}":"";
-    print header(-type=>'text/html', -charset=>'utf-8');
-    print qq*
-      <!DOCTYPE html><html><head>
-      <META HTTP-EQUIV=refresh CONTENT=\"0;URL=$myurl$l\">
-      </head></html>
-    *;
-
+    on_name_request $team, $name;
   }
-
   ###############################
-
   # Answer is not empty. Check is it correct or not,
   # update team information, go to next/same point.
   elsif ($team && $pt && $ans) {
-    my $st = pt_status($team, $pt);
-    die "To open this puzzle you should answer the previous one\n" if $st==0;
-    die "You already solved this puzzle\n" if $st==2;
-
-    my $point = read_point($pt);
-    die "Bad point information: answer is missing" unless $point->{answer};
-
-    my $res = 1;
-    unless ($point->{skip_coords}) {
-      # coordinates are always positive
-      die "Bad point information: coordinates are missing" unless $point->{lat} && $point->{lon};
-      my $plat = abs($point->{lat});
-      my $plon = abs($point->{lon});
-      my $dist = geo_dist($lon,$lat, $plon, $plat);
-      my $dlim = $point->{dlim} || $dlim_def;
-      $res = $res && ($dist<$dlim);
-    }
-
-    write_log("check answer: team: $team->{name}, id: $team->{id}, pt: $pt, ans: $ans");
-
-    # check answer.
-    my $ans1 = lc $ans;
-    my $ans2 = lc $point->{answer};
-    $ans1 =~ s/^\s+//;
-    $ans1 =~ s/\s+$//;
-
-    if ($point->{nospaces}){
-      $ans1 =~s/\s+//g;
-      $ans2 =~s/\s+//g;
-    }
-
-    if ($point->{list}){
-      $ans1 = join(' ', sort split(/[ ,;]/, $ans1));
-      $ans2 = join(' ', sort split(/[ ,;]/, $ans2));
-    }
-
-    $res = $res && ($ans1 eq $ans2);
-    my $next_day = ${$team->{atimes}}[$pt] + 3600*24;
-    if (${$team->{atimes}}[$pt] && (time()<$next_day)){
-      ${$team->{guesses_per_day}}[$pt] += 1;
-    }
-    else {
-      ${$team->{guesses_per_day}}[$pt] = 1;
-    }
-    my $max_gpd = $point->{max_gpd} || $max_gpd_def;
-    my $gpd = ${$team->{guesses_per_day}}[$pt] > $max_gpd;
-
-
-    if (!$gpd) {
-      ${$team->{guesses}}[$pt] += 1;
-      ${$team->{answers}}[$pt] = [$ans, $lat, $lon];
-      ${$team->{atimes}}[$pt] = time();
-
-      if ($res){
-        write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess ${$team->{guesses}}[$pt])!");
-        $team->{res}->[$pt] = 1;
-        $pt++;
-      }
-      else {
-        write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_wr>wrong</span> (guess ${$team->{guesses}}[$pt])!");
-      }
-      write_team($team);
-    }
-
-    write_log("result: guesses: ${$team->{guesses}}[$pt], per day: ${$team->{guesses_per_day}}[$pt], ".
-              "gpd: $gpd, res: $res");
-
-
-    print_html_header(); # no errors below this point!
-    if ($gpd){
-      my $next_day_t = strftime("%Y-%m-%d %H:%M", localtime($next_day));
-      print qq*
-        <h3><font color=red>After $max_gpd wrong guesses you should wait 24 h, until $next_day_t.</font></h3>
-      *;
-    }
-    elsif ($res){
-      print "<h3><font color=darkgreen>Answer is correct, congratulations!</font></h3>\n";
-      if (check_point($pt)){
-        print qq*
-          <p><a href='$myurl?tid=$team->{id}&pt=$pt'>Go to the next puzzle (#$pt)...</a>
-        *;
-      }
-      else {  # no more puzzles
-        print qq*
-        <h3>We do not have more puzzles! Maybe later.</a>
-        *;
-      }
-    }
-    else{
-      print qq*
-        <h3><font color=red>Answer is wrong!</font></h3>
-        <p><a href='$myurl?tid=$team->{id}&pt=$pt'>Try again</a>...
-      *;
-    }
-    print qq*
-      <p><a href='$myurl?tid=$team->{id}'>Go to the main page...</a>
-      <br>Save this link to return to your game later.
-      *;
-    print_html_tail();
-
+    on_answer_request $team, $pt, $ans;
   }
-
   ###############################
-
   # $team and $pt are non-empty. Show the point page.
   elsif ($team && $pt) {
-    my $point = read_point($pt);
-
-    print_html_header(); # no errors below this point!
-    my $st = pt_status($team, $pt);
-
-    if ($st==2 || $team->{id} eq $site::my_secret2){
-      print qq*
-      <h3>Puzzle #$pt (solved)</h3>
-      <p><b>$point->{text}</b>
-      *;
-    }
-    elsif ($st==1){
-      my $NS  = $point->{lat}>=0? 'N' : 'S';
-      my $EW  = $point->{lon}>=0? 'E' : 'W';
-      my $max_gpd = $point->{max_gpd} || $max_gpd_def;
-      my $dlim = $point->{dlim} || $dlim_def;
-      print qq*
-        <h3>Puzzle #$pt</h3>
-        <p><b>$point->{text}</b>
-        <form type=get action="$myurl">
-        <p>Enter your answer: <br><input name=ans size=32>
-      *;
-      print qq*
-        <p>Enter point coordinates: <br>$NS <input name=lat size=12> $EW <input name=lon size=12>
-        <p>Coordinates are latitude and longitude in WGS84 degrees, always positive.
-        <br>Example: N 54.04874 W 2.80782 (Lancaster railway station).
-        <br>Accuracy should be better then $dlim m.
-      * unless $point->{skip_coords};
-      print qq*
-        <p>After $max_gpd wrong answers you should wait for 24 hours before answering again.
-        <p><input type=submit value=Submit>
-        <input type=hidden name=tid value='$team->{id}'>
-        <input type=hidden name=pt value='$pt'>
-        </form>
-      *;
-    }
-    else {
-      print qq*
-        <h3>Puzzle #$pt is locked for you</h3>
-      *;
-    }
-    print qq*
-      <p><a href='$myurl?tid=$team->{id}'>return to the main page</a>...
-      <br>Do not forget to save this link to return back to your game later.
-    *;
-    print_html_tail();
+    print_point_page $team, $pt;
   }
-
   ###############################
-
-  # Print main page. If team is not known add
-  # "team name field"
+  # Print main page. Team may be ampty or non-empty
   else {
-    my $ptn; # last point number
-    for ($ptn = 0; check_point($ptn+1); $ptn++){}
-
-    my @teams;
-    opendir D,$datadir or die "can't open data folder: $!\n";
-    while (my $f = readdir(D)){
-      next unless $f=~/^$tpref(\S+).js$/;
-      push @teams, read_team($1);
-    }
-    print_html_header(); # no errors below this point!
-    print qq*
-    <h3>Treasure hunting game in Lancaster</h3>
-
-    <p>The game is a sequence of puzzles. Each one describes
-    some place within 5 mi radius from Lancaster railway station and has
-    a question which you can answer after visiting the place. When you
-    solve a puzzle, you can see the next one.
-    Please do not reveal any information about places and correct answers.
-    Good luck!
-    *;
-
-    print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
-    print "<tr><th>Puzzles:</th>\n";
-    for (my $pt = 1; $pt<=$ptn; $pt++) {
-      my $st = pt_status($team, $pt);
-      my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$pt'>$pt</a>":"$pt";
-      print "<th style='min-width:5em;'>$l</th>";
-    }
-    print "<tr>\n";
-
-    @teams = sort {$a->{ctime} <=> $b->{ctime}} @teams;
-    foreach my $team (sort {$#{$b->{res}} <=> $#{$a->{res}}} @teams) {
-      next if $team->{id} eq $site::my_secret2;
-      print "<tr><th valign=top>$team->{name}</th>\n";
-      for (my $pt = 1; $pt<=$ptn; $pt++) {
-        my $col = 'white';
-        my $g = ${$team->{guesses}}[$pt] || 0;
-        $g = $g ? "<br><font size=-2 color=grey>guesses: $g</font>" : '';
-        my $t = '';
-        my $m = '';
-
-        my $st = pt_status($team, $pt);
-        if ($st==2){
-          $col = 'lightgreen';
-          $m = '<b>DONE</b>';
-          $t = ${$team->{atimes}}[$pt];
-          $t = $t ? strftime("%Y-%m-%d", localtime($t)) : '';
-          $t = $t ? "<br><font size=-2 color=grey>$t</font>" : '';
-        }
-        elsif ($st==1){
-          $col = 'yellow';
-          $m = 'In progress';
-        }
-        else{
-          $col = 'white';
-          $g = '';
-        }
-        print "<td bgcolor=$col>$m$t$g</td>\n";
-      }
-      print "</tr>\n";
-    }
-    print "</table>\n";
-
-    if ($team) {
-#      my $next = $team->{res}->[]+1;
-#        <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
-      print qq*
-        <br><form action='$myurl' method=get>
-        Your team name is:
-        <b><input name=name width=20 value="$team->{name}"></b>
-        <input type=hidden name=tid value='$team->{id}'>
-        <input type=submit name='Rename' value='Rename'>
-        <!--input type=submit name='Delete' value='Delete'--></form>
-
-        <p>If you want to share this game with other people use this link:
-        <a href="http://slazav.xyz/thg">http://slazav.xyz/thg</a>
-
-        <p>To return back to your game or to share it with teammates use this link:
-        <a href="http://slazav.xyz/thg?tid=$team->{id}">http://slazav.xyz/thg?tid=$team->{id}</a>
-      *;
-    }
-    else {
-      print qq*
-        <p>If you want to play, enter name of your team and go to the first puzzle:
-        <br><form action='$myurl' method=get>
-        <input name=name width=20> <input type=submit value='Go!'></form>
-      *;
-    }
-    if (open HH, "$site::site_logdir/thg_safe.log") {
-      print "<h3>Game history</h3>\n";
-      my $d0='';
-      foreach (reverse <HH>) {
-        $_ =~ /(\S+)\s+(\S+):\s+(.*)/;
-        print "<h4>$1</h4>" if ($1 ne $d0);
-        $d0=$1;
-        print "<b>$2:</b> $3<br>\n";
-      }
-      close HH;
-    }
-
-    print_html_tail();
+    print_main_page $team;
   }
 }
 catch {

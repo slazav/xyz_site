@@ -122,6 +122,18 @@ sub write_safe_log {
   close LOG;
 }
 
+############################################################
+# point status for a team (0: closed, 1: opened, 2: solved)
+sub pt_status {
+  my $team = shift;
+  my $pt   = shift; # point number, 1...
+
+  return 0 unless $team;
+  return 2 if $team->{res}->[$pt];
+  return 1 if $pt>1 && $team->{res}->[$pt-1];
+  return 0;
+}
+
 ##################################
 # Point format:
 #  * text
@@ -136,7 +148,7 @@ sub write_safe_log {
 ##################################
 # Team format:
 #  * name  -- name
-#  * pt    -- number of last correct answer
+#  * pt    -- number of last correct answer (obsoleted)
 #  * guesses -- array of numbers
 #  * answers -- array of array
 #  * res     -- array of results 0/1 for each point
@@ -252,10 +264,9 @@ try {
   # Answer is not empty. Check is it correct or not,
   # update team information, go to next/same point.
   elsif ($team && $pt && $ans) {
-    die "To open this puzzle you should answer the previous one\n"
-      if $pt>1 && $team->{res}->[$pt-1] != 1;
-    die "You already solved this puzzle\n"
-      if $team->{res}->[$pt] == 1;
+    my $st = pt_status($team, $pt);
+    die "To open this puzzle you should answer the previous one\n" if $st==0;
+    die "You already solved this puzzle\n" if $st==2;
 
     my $point = read_point($pt);
     die "Bad point information: answer is missing" unless $point->{answer};
@@ -362,14 +373,15 @@ try {
     my $point = read_point($pt);
 
     print_html_header(); # no errors below this point!
+    my $st = pt_status($team, $pt);
 
-    if ($team->{res}->[$pt] || $team->{id} eq $site::my_secret2){
+    if ($st==2 || $team->{id} eq $site::my_secret2){
       print qq*
       <h3>Puzzle #$pt (solved)</h3>
       <p><b>$point->{text}</b>
       *;
     }
-    elsif ($pt>1 && $team->{res}->[$pt-1] == 1){
+    elsif ($st==1){
       my $NS  = $point->{lat}>=0? 'N' : 'S';
       my $EW  = $point->{lon}>=0? 'E' : 'W';
       my $max_gpd = $point->{max_gpd} || $max_gpd_def;
@@ -435,7 +447,8 @@ try {
     print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
     print "<tr><th>Puzzles:</th>\n";
     for (my $pt = 1; $pt<=$ptn; $pt++) {
-      my $l = $team? "<a href='$myurl?tid=$team->{id}&pt=$pt'>$pt</a>":"$pt";
+      my $st = pt_status($team, $pt);
+      my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$pt'>$pt</a>":"$pt";
       print "<th style='min-width:5em;'>$l</th>";
     }
     print "<tr>\n";
@@ -451,14 +464,15 @@ try {
         my $t = '';
         my $m = '';
 
-        if ($team->{res}->[$pt]){
+        my $st = pt_status($team, $pt);
+        if ($st==2){
           $col = 'lightgreen';
           $m = '<b>DONE</b>';
           $t = ${$team->{atimes}}[$pt];
           $t = $t ? strftime("%Y-%m-%d", localtime($t)) : '';
           $t = $t ? "<br><font size=-2 color=grey>$t</font>" : '';
         }
-        elsif ($pt==1 || $team->{res}->[$pt-1]){
+        elsif ($st==1){
           $col = 'yellow';
           $m = 'In progress';
         }

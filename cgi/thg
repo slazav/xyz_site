@@ -14,6 +14,7 @@ use Digest::MD5 'md5_hex';
 use Try::Tiny;
 use Math::Trig;
 use POSIX qw(strftime);
+use List::Util qw(min max);
 
 $ENV{TZ} = 'Europe/London';
 
@@ -139,8 +140,15 @@ sub pt_status {
 
   return 0 unless $team;
   return 2 if $team->{solved}->{$pt};
-  return 1 if $pt==1 || $team->{solved}->{$pt-1};
-  return 0;
+
+  for (my $p = $pt-1; $p>0; $p--){
+    # check for optional points
+    my $point = read_point($p);
+    next if $point->{optional};
+    return 0 unless $team->{solved}->{$p};
+  }
+
+  return 1;
 }
 
 ##################################
@@ -451,7 +459,10 @@ sub print_main_page{
   print "<tr><th>Puzzles:</th>\n";
   foreach my $point (@points) {
     my $st = pt_status($team, $point->{n});
-    my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$point->{n}'>$point->{n}</a>":"$point->{n}";
+    my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$point->{n}'>$point->{n}</a>":$point->{n};
+    if ($point->{optional}) {
+      $l .= '<br>optional';
+    }
     print "<th style='min-width:5em;'>$l</th>";
   }
   print "<tr>\n";
@@ -489,15 +500,16 @@ sub print_main_page{
   print "</table>\n";
 
   if ($team) {
-#      my $next = $team->{res}->[]+1;
-#        <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
+    my $next = max(keys %{$team->{solved}}) + 1;
     print qq*
-      <br><form action='$myurl' method=get>
+      <p><form action='$myurl' method=get>
       Your team name is:
       <b><input name=name width=20 value="$team->{name}"></b>
       <input type=hidden name=tid value='$team->{id}'>
       <input type=submit name='Rename' value='Rename'>
       <!--input type=submit name='Delete' value='Delete'--></form>
+
+      <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
 
       <p>If you want to share this game with other people use this link:
       <a href="http://slazav.xyz/thg">http://slazav.xyz/thg</a>

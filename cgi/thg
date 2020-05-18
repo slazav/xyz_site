@@ -459,16 +459,19 @@ sub print_main_page{
   print "<tr><th>Puzzles:</th>\n";
   foreach my $point (@points) {
     my $st = pt_status($team, $point->{n});
-    my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$point->{n}'>$point->{n}</a>":$point->{n};
-    if ($point->{optional}) {
-      $l .= '<br>optional';
-    }
+    my $l = $point->{n};
+
+    $l = "<a href='$myurl?tid=$team->{id}&pt=$point->{n}'>$l</a>"
+      if $st>0 || ($team && $team->{id} eq $site::my_secret2);
+
+    $l.= '*' if $point->{optional};
+
     print "<th style='min-width:5em;'>$l</th>";
   }
   print "<tr>\n";
 
   foreach my $team (@teams) {
-    next if $team->{id} eq $site::my_secret2;
+    next if ($team && $team->{id} eq $site::my_secret2);
     print "<tr><th valign=top>$team->{name}</th>\n";
     foreach my $point (@points) {
       my $col = 'white';

@@ -58,6 +58,17 @@ sub convert_team($){
     }
   }
   delete $team->{pt};
+  # convert arrays to hashes
+  foreach my $name ('answers', 'atimes', 'guesses', 'guesses_per_day') {
+    if (exists($team->{$name}) &&
+        ref($team->{$name}) eq 'ARRAY'){
+      my $tmp = {};
+      for (my $i=1; $i <= $#{$team->{$name}}; $i++) {
+        $tmp->{$i} = $team->{$name}->[$i];
+      }
+      $team->{$name} = $tmp;
+    }
+  }
 }
 
 sub write_team($){
@@ -65,7 +76,7 @@ sub write_team($){
   convert_team $team;
   die "can't save team data: no id\n" unless $team->{id};
   open OUT, "> $datadir/$tpref$team->{id}.js" or die "can't save team data: $!\n";
-  print OUT JSON->new->utf8->canonical()->encode($team), "\n";
+  print OUT JSON->new->utf8->canonical()->pretty()->encode($team), "\n";
   close OUT;
 }
 
@@ -88,6 +99,7 @@ sub read_point($){
   my $pt = shift;
   open IN, "$datadir/$ppref$pt.js" or die "can't read puzzle information: $!\n";
   my $point = decode_json(join(' ', <IN>));
+  $point->{n} = $pt;
   close(IN);
   return $point;
 }
@@ -148,12 +160,14 @@ sub pt_status {
 ##################################
 # Team format:
 #  * name  -- name
-#  * pt    -- number of last correct answer (obsoleted)
-#  * guesses -- array of numbers
-#  * answers -- array of array
-#  * res     -- array of results 0/1 for each point
-#  * atimes  -- array of numbers, time of answers
 #  * ctime   -- time when team was created
+#  * pt    -- number of last correct answer (obsoleted)
+#  * atimes  -- number of guesses for each point (hash)
+#  * guesses -- number of guesses for each point (hash)
+#  * guesses_per_day -- number of guesses during last 24h (hash)
+#  * answers -- answers and coordinates for each point (hash)
+#  * solved  -- 0/1 for each point
+#  * opened  -- 0/1 for each point
 
 ##################################
 sub print_html_header{
@@ -228,7 +242,9 @@ sub on_name_request{
   }
   else {
     my $tid = md5_hex($name.$site::my_secret1.$t);
-    $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
+    $team = {name=>$name, id=>$tid, ctime=>$t,
+             guesses=>{}, guesses_per_day=>{}, answers=>{}, atimes=>{},
+             opened=>{1=>1}, solved=>{}};
     die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
     write_log("add user: $t, $tid: $name");
     write_safe_log("new team: <span class=tname>$name</span>");
@@ -288,35 +304,35 @@ sub on_answer_request {
   }
 
   $res = $res && ($ans1 eq $ans2);
-  my $next_day = ${$team->{atimes}}[$pt] + 3600*24;
-  if (${$team->{atimes}}[$pt] && (time()<$next_day)){
-    ${$team->{guesses_per_day}}[$pt] += 1;
+  my $next_day = $team->{atimes}->{$pt} + 3600*24;
+  if ($team->{atimes}->{$pt} && (time()<$next_day)){
+    $team->{guesses_per_day}->{$pt} += 1;
   }
   else {
-    ${$team->{guesses_per_day}}[$pt] = 1;
+    $team->{guesses_per_day}->{$pt} = 1;
   }
   my $max_gpd = $point->{max_gpd} || $max_gpd_def;
-  my $gpd = ${$team->{guesses_per_day}}[$pt] > $max_gpd;
+  my $gpd = $team->{guesses_per_day}->{$pt} > $max_gpd;
 
 
   if (!$gpd) {
-    ${$team->{guesses}}[$pt] += 1;
-    ${$team->{answers}}[$pt] = [$ans, $lat, $lon];
-    ${$team->{atimes}}[$pt] = time();
+    $team->{guesses}->{$pt} += 1;
+    $team->{answers}->{$pt} = [$ans, $lat, $lon];
+    $team->{atimes}->{$pt} = time();
 
     if ($res){
-      write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess ${$team->{guesses}}[$pt])!");
+      write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess $team->{guesses}->{$pt})!");
       $team->{solved}->{$pt}   = 1;
       $team->{opened}->{$pt+1} = 1;
       $pt++;
     }
     else {
-      write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_wr>wrong</span> (guess ${$team->{guesses}}[$pt])!");
+      write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_wr>wrong</span> (guess $team->{guesses}->{$pt})!");
     }
     write_team($team);
   }
 
-  write_log("result: guesses: ${$team->{guesses}}[$pt], per day: ${$team->{guesses_per_day}}[$pt], ".
+  write_log("result: guesses: $team->{guesses}->{$pt}, per day: $team->{guesses_per_day}->{$pt}, ".
             "gpd: $gpd, res: $res");
 
   print_html_header(); # no errors below this point!
@@ -411,12 +427,19 @@ sub print_main_page{
   my $ptn; # last point number
   for ($ptn = 0; check_point($ptn+1); $ptn++){}
 
+  # read and sort teams and points
   my @teams;
+  my @points;
   opendir D,$datadir or die "can't open data folder: $!\n";
   while (my $f = readdir(D)){
-    next unless $f=~/^$tpref(\S+).js$/;
-    push @teams, read_team($1);
+    if ($f=~/^$tpref(\S+).js$/) { push @teams,  read_team($1); }
+    if ($f=~/^$ppref(\d+).js$/) { push @points, read_point($1); }
   }
+  @teams  = sort {$a->{ctime} <=> $b->{ctime}} @teams;
+  @teams  = sort {keys %{$b->{solved}} <=> keys %{$a->{solved}}} @teams;
+  @points = sort {$a->{n} <=> $b->{n}} @points;
+
+
   print_html_header(); # no errors below this point!
   print qq*
   <h3>Treasure hunting game in Lancaster</h3>
@@ -431,29 +454,28 @@ sub print_main_page{
 
   print "<p><table border=1 cellpadding=5 cellspacing=0>\n";
   print "<tr><th>Puzzles:</th>\n";
-  for (my $pt = 1; $pt<=$ptn; $pt++) {
-    my $st = pt_status($team, $pt);
-    my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$pt'>$pt</a>":"$pt";
+  foreach my $point (@points) {
+    my $st = pt_status($team, $point->{n});
+    my $l = $st>0? "<a href='$myurl?tid=$team->{id}&pt=$point->{n}'>$point->{n}</a>":"$point->{n}";
     print "<th style='min-width:5em;'>$l</th>";
   }
   print "<tr>\n";
 
-  @teams = sort {$a->{ctime} <=> $b->{ctime}} @teams;
-  foreach my $team (sort {keys %{$b->{solved}} <=> keys %{$a->{solved}}} @teams) {
+  foreach my $team (@teams) {
     next if $team->{id} eq $site::my_secret2;
     print "<tr><th valign=top>$team->{name}</th>\n";
-    for (my $pt = 1; $pt<=$ptn; $pt++) {
+    foreach my $point (@points) {
       my $col = 'white';
-      my $g = ${$team->{guesses}}[$pt] || 0;
+      my $g = $team->{guesses}->{$point->{n}} || 0;
       $g = $g ? "<br><font size=-2 color=grey>guesses: $g</font>" : '';
       my $t = '';
       my $m = '';
 
-      my $st = pt_status($team, $pt);
+      my $st = pt_status($team, $point->{n});
       if ($st==2){
         $col = 'lightgreen';
         $m = '<b>DONE</b>';
-        $t = ${$team->{atimes}}[$pt];
+        $t = $team->{atimes}->{$point->{n}};
         $t = $t ? strftime("%Y-%m-%d", localtime($t)) : '';
         $t = $t ? "<br><font size=-2 color=grey>$t</font>" : '';
       }

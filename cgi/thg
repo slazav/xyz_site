@@ -195,14 +195,14 @@ try {
     my $t = time();
     if ($team && param('Delete')){
       write_log("delete user: $t, $team->{id}: $name");
-      write_safe_log("delete: $name");
+      write_safe_log("delete: <span class=tname>$name</span>");
       delete_team($team);
       undef $team;
     }
     elsif ($team && param('Rename')){
       if ($team->{name} ne $name) {
         write_log("rename user: $t, $team->{id}: $team->{name} -> $name");
-        write_safe_log("rename: $team->{name} -> $name");
+        write_safe_log("rename: <span class=tname>$team->{name}</span> -> <span class=tname>$name</span>");
         $team->{name} = $name;
         write_team($team);
       }
@@ -213,7 +213,7 @@ try {
       $team = {name=>$name, id=>$tid, pt=>0, guesses=>[], answers=>[], ctime=>$t};
       die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
       write_log("add user: $t, $tid: $name");
-      write_safe_log("new team: $name");
+      write_safe_log("new team: <span class=tname>$name</span>");
       write_team($team);
     }
     my $l = $team? "?tid=$team->{id}":"";
@@ -284,12 +284,12 @@ try {
       ${$team->{atimes}}[$pt] = time();
 
       if ($res){
-        write_safe_log("$team->{name} answers #$pt: correct (guess ${$team->{guesses}}[$pt])!");
+        write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess ${$team->{guesses}}[$pt])!");
         $team->{pt}++;
         $pt++;
       }
       else {
-        write_safe_log("$team->{name} answers #$pt: wrong (guess ${$team->{guesses}}[$pt])!");
+        write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_wr>wrong</span> (guess ${$team->{guesses}}[$pt])!");
       }
       write_team($team);
     }
@@ -476,7 +476,7 @@ try {
     }
     if (open HH, "$site::site_logdir/thg_safe.log") {
       print "<h3>Game history</h3>\n";
-      my $d0;
+      my $d0='';
       foreach (reverse <HH>) {
         $_ =~ /(\S+)\s+(\S+):\s+(.*)/;
         print "<h4>$1</h4>" if ($1 ne $d0);

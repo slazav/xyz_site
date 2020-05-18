@@ -1,0 +1,20 @@
+/**********************************************/
+body {
+  background-color: #949fd4;
+}
+
+.tname {
+  color: #006496;
+}
+
+.ans_ok {
+  color:#056600;
+}
+
+.ans_wr {
+  color:#660014;
+}
+
+.org {
+  color:red;
+}

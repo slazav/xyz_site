@@ -48,13 +48,10 @@ sub convert_team($){
   my $team = shift;
   return unless $team;
   if (exists($team->{pt}) &&
-     !exists($team->{solved}) &&
-     !exists($team->{opened})) {
+     !exists($team->{solved})) {
     $team->{solved} = {};
-    $team->{opened} = {1=>1};
     for (my $i=1; $i <= $team->{pt}; $i++) {
       $team->{solved}->{$i}   = 1;
-      $team->{opened}->{$i+1} = 1;
     }
   }
   delete $team->{pt};
@@ -142,7 +139,7 @@ sub pt_status {
 
   return 0 unless $team;
   return 2 if $team->{solved}->{$pt};
-  return 1 if $team->{opened}->{$pt};
+  return 1 if $pt==1 || $team->{solved}->{$pt-1};
   return 0;
 }
 
@@ -167,7 +164,6 @@ sub pt_status {
 #  * guesses_per_day -- number of guesses during last 24h (hash)
 #  * answers -- answers and coordinates for each point (hash)
 #  * solved  -- 0/1 for each point
-#  * opened  -- 0/1 for each point
 
 ##################################
 sub print_html_header{
@@ -244,7 +240,7 @@ sub on_name_request{
     my $tid = md5_hex($name.$site::my_secret1.$t);
     $team = {name=>$name, id=>$tid, ctime=>$t,
              guesses=>{}, guesses_per_day=>{}, answers=>{}, atimes=>{},
-             opened=>{1=>1}, solved=>{}};
+             solved=>{}};
     die "team ID collision: file exists!\n" if  -f "$datadir/$tpref$tid.js";
     write_log("add user: $t, $tid: $name");
     write_safe_log("new team: <span class=tname>$name</span>");
@@ -323,7 +319,6 @@ sub on_answer_request {
     if ($res){
       write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess $team->{guesses}->{$pt})!");
       $team->{solved}->{$pt}   = 1;
-      $team->{opened}->{$pt+1} = 1;
       $pt++;
     }
     else {

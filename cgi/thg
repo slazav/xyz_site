@@ -44,6 +44,16 @@ sub geo_dist($$$$) {
 ##################################
 sub write_team($){
   my $team = shift;
+
+  # convert old (pt) to new (res)
+  if ($team->{pt} && !exists($team->{res})) {
+    $team->{res} = [];
+    for (my $i=1; $i <= $team->{pt}; $i++) {
+      $team->{res}->[$i] = 1;
+    }
+  }
+  delete $team->{pt};
+
   die "can't save team data: no id\n" unless $team->{id};
   open OUT, "> $datadir/$tpref$team->{id}.js" or die "can't save team data: $!\n";
   print OUT JSON->new->utf8->canonical()->encode($team), "\n";
@@ -62,6 +72,16 @@ sub read_team($){
   open IN, "$datadir/$tpref$tid.js" or die "can't load team data: $!\n";
   my $team = decode_json(join(' ', <IN>));
   close IN;
+
+  # convert old (pt) to new (res)
+  if ($team->{pt} && !exists($team->{res})) {
+    $team->{res} = [];
+    for (my $i=1; $i <= $team->{pt}; $i++) {
+      $team->{res}->[$i] = 1;
+    }
+  }
+  delete $team->{pt};
+
   return $team;
 }
 sub read_point($){
@@ -119,6 +139,7 @@ sub write_safe_log {
 #  * pt    -- number of last correct answer
 #  * guesses -- array of numbers
 #  * answers -- array of array
+#  * res     -- array of results 0/1 for each point
 #  * atimes  -- array of numbers, time of answers
 #  * ctime   -- time when team was created
 
@@ -231,8 +252,10 @@ try {
   # Answer is not empty. Check is it correct or not,
   # update team information, go to next/same point.
   elsif ($team && $pt && $ans) {
-    die "To open this puzzle you should answer the previous one\n" if $team->{pt}+1 < $pt;
-    die "You already solved this puzzle\n" if $team->{pt}+1 > $pt;
+    die "To open this puzzle you should answer the previous one\n"
+      if $pt>1 && $team->{res}->[$pt-1] != 1;
+    die "You already solved this puzzle\n"
+      if $team->{res}->[$pt] == 1;
 
     my $point = read_point($pt);
     die "Bad point information: answer is missing" unless $point->{answer};
@@ -285,7 +308,7 @@ try {
 
       if ($res){
         write_safe_log("<span class=tname>$team->{name}</span> answers #$pt: <span class=ans_ok>correct</span> (guess ${$team->{guesses}}[$pt])!");
-        $team->{pt}++;
+        $team->{res}->[$pt] = 1;
         $pt++;
       }
       else {
@@ -340,13 +363,13 @@ try {
 
     print_html_header(); # no errors below this point!
 
-    if ($team->{pt}+1>$pt || $team->{id} eq $site::my_secret2){
+    if ($team->{res}->[$pt] || $team->{id} eq $site::my_secret2){
       print qq*
       <h3>Puzzle #$pt (solved)</h3>
       <p><b>$point->{text}</b>
       *;
     }
-    elsif($team->{pt}+1==$pt){
+    elsif ($pt>1 && $team->{res}->[$pt-1] == 1){
       my $NS  = $point->{lat}>=0? 'N' : 'S';
       my $EW  = $point->{lon}>=0? 'E' : 'W';
       my $max_gpd = $point->{max_gpd} || $max_gpd_def;
@@ -418,7 +441,7 @@ try {
     print "<tr>\n";
 
     @teams = sort {$a->{ctime} <=> $b->{ctime}} @teams;
-    foreach my $team (sort {$b->{pt} <=> $a->{pt}} @teams) {
+    foreach my $team (sort {$#{$b->{res}} <=> $#{$a->{res}}} @teams) {
       next if $team->{id} eq $site::my_secret2;
       print "<tr><th valign=top>$team->{name}</th>\n";
       for (my $pt = 1; $pt<=$ptn; $pt++) {
@@ -428,14 +451,14 @@ try {
         my $t = '';
         my $m = '';
 
-        if ($team->{pt} >= $pt){
+        if ($team->{res}->[$pt]){
           $col = 'lightgreen';
           $m = '<b>DONE</b>';
           $t = ${$team->{atimes}}[$pt];
           $t = $t ? strftime("%Y-%m-%d", localtime($t)) : '';
           $t = $t ? "<br><font size=-2 color=grey>$t</font>" : '';
         }
-        elsif ($team->{pt}+1==$pt){
+        elsif ($pt==1 || $team->{res}->[$pt-1]){
           $col = 'yellow';
           $m = 'In progress';
         }
@@ -450,7 +473,8 @@ try {
     print "</table>\n";
 
     if ($team) {
-      my $next = $team->{pt}+1;
+#      my $next = $team->{res}->[]+1;
+#        <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
       print qq*
         <br><form action='$myurl' method=get>
         Your team name is:
@@ -458,7 +482,6 @@ try {
         <input type=hidden name=tid value='$team->{id}'>
         <input type=submit name='Rename' value='Rename'>
         <!--input type=submit name='Delete' value='Delete'--></form>
-        <p><a href='$myurl?tid=$team->{id}&pt=$next'>Go to the puzzle #$next</a>
 
         <p>If you want to share this game with other people use this link:
         <a href="http://slazav.xyz/thg">http://slazav.xyz/thg</a>

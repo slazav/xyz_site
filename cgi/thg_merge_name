@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+
+# merge all records for a single name
+
+use warnings;
+use strict;
+use utf8;
+use JSON;
+use Try::Tiny;
+use List::Util qw(min max);
+
+binmode STDOUT, ':encoding(UTF-8)';
+
+my $datadir ='.';
+my $tpref = 't';
+
+##################################
+# *_team functions are copies from thg script
+# old->new format
+sub convert_team($){
+  my $team = shift;
+  return unless $team;
+  if (exists($team->{pt}) &&
+     !exists($team->{solved})) {
+    $team->{solved} = {};
+    for (my $i=1; $i <= $team->{pt}; $i++) {
+      $team->{solved}->{$i}   = 1;
+    }
+  }
+  delete $team->{pt};
+  # convert arrays to hashes
+  foreach my $name ('answers', 'atimes', 'guesses', 'guesses_per_day') {
+    if (exists($team->{$name}) &&
+        ref($team->{$name}) eq 'ARRAY'){
+      my $tmp = {};
+      for (my $i=1; $i <= $#{$team->{$name}}; $i++) {
+        $tmp->{$i} = $team->{$name}->[$i];
+      }
+      $team->{$name} = $tmp;
+    }
+  }
+}
+
+# copy from thg
+sub write_team($){
+  my $team = shift;
+  convert_team $team;
+  die "can't save team data: no id\n" unless $team->{id};
+  open OUT, "> $datadir/$tpref$team->{id}.js" or die "can't save team data: $!\n";
+  print OUT JSON->new->utf8->canonical()->pretty()->encode($team), "\n";
+  close OUT;
+}
+
+sub read_team($){
+  my $tid = shift;
+  return '' unless $tid;
+  my $f = "$datadir/$tpref$tid.js";
+  $f.= "_" unless -f $f;
+
+  open IN, $f or die "can't load team data: $!\n";
+  my $team = decode_json(join(' ', <IN>));
+  close IN;
+  convert_team $team;
+  return $team;
+}
+
+##################################
+
+die "usage: $0 <team name>" if $#ARGV!=0;
+my $name = $ARGV[0];
+
+
+
+# read and sort teams
+my @teams;
+opendir D,$datadir or die "can't open data folder: $!\n";
+while (my $f = readdir(D)){
+  next unless ($f=~/^$tpref(\S+).js_?$/);
+  my $t = read_team($1);
+  next unless $t->{name} eq $name;
+  push @teams,  $t;
+}
+@teams  = sort {$a->{ctime} <=> $b->{ctime}} @teams;
+
+die "no teams with name: $name" if @teams<1;
+die "no need to merge, only one team: $name" if @teams==1;
+print "merging name: $name, ", scalar(@teams), " entries\n";
+
+##################################
+# Team format:
+#  * name  -- name
+#  * id    -- id
+#  * ctime   -- time when team was created
+#  * pt    -- number of last correct answer (obsoleted)
+#  * atimes  -- time of last guess for each point (hash)
+#  * guesses -- number of guesses for each point (hash)
+#  * guesses_per_day -- number of guesses during last 24h (hash)
+#  * answers -- answers and coordinates for each point (hash)
+#  * solved  -- 0/1 for each point
+
+
+my $t0 = $teams[0];
+foreach my $t (@teams){
+  foreach my $kname ('atimes', 'guesses_per_day', 'answers', 'solved'){
+    foreach my $k (keys %{$t->{$kname}}){
+      print "$kname -- $k -- $t0->{$kname}->{$k} -> ";
+      $t0->{$kname}->{$k} = $t->{$kname}->{$k} unless exists $t0->{$kname}->{$k};
+      print "$t0->{$kname}->{$k}\n";
+    }
+  }
+  my $kname='guesses';
+  foreach my $k (keys %{$t->{$kname}}){
+    if (exists $t0->{$kname}->{$k}){
+      print "$kname -- $k -- $t0->{$kname}->{$k} -> ";
+      $t0->{$kname}->{$k} += $t->{$kname}->{$k} - 1;
+      print "$t0->{$kname}->{$k}\n";
+    }
+    else {
+      $t0->{$kname}->{$k} = 1;
+    }
+  }
+  $t0->{id} = $t->{id};
+  my $fn = "$datadir/$tpref$t->{id}.js";
+  rename $fn, $fn."_" if -f $fn;
+}
+
+write_team $t0;
+

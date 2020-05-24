@@ -296,6 +296,7 @@ sub on_answer_request {
   my $ans2 = lc $point->{answer};
   $ans1 =~ s/^\s+//;
   $ans1 =~ s/\s+$//;
+  $ans1 =~ s/\s+$/ /g;
 
   if ($point->{nospaces}){
     $ans1 =~s/\s+//g;

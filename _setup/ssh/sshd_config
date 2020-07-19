@@ -68,6 +68,8 @@ X11DisplayOffset 10
 PrintMotd no
 PrintLastLog yes
 TCPKeepAlive yes
+ClientAliveInterval 60
+ClientAliveCountMax 10000
 #UseLogin no
 
 #MaxStartups 10:30:60

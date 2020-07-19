@@ -8,12 +8,13 @@
        - {port: "8085", name: "drydemag", home: "{{datadir}}db_drydemag"}
        - {port: "8087", name: "nanoy",    home: "{{datadir}}db_nanoy"}
        - {port: "8088", name: "fincryo",  home: "{{datadir}}db_fincryo"}
-       - {port: "8087", name: "muki",     home: "{{datadir}}db_muki"}
-       - {port: "8087", name: "proto",    home: "{{datadir}}db_proto"}
+       - {port: "8092", name: "muki",     home: "{{datadir}}db_muki"}
+       - {port: "8093", name: "proto",    home: "{{datadir}}db_proto"}
        - {port: "8086", name: "rota",     home: "{{datadir}}db_rota"}
        - {port: "8089", name: "misc",     home: "{{datadir}}db_misc"}
        - {port: "8090", name: "test",     home: "{{datadir}}db_test"}
        - {port: "8091", name: "f2",       home: "{{datadir}}db_f2"}
+       - {port: "8094", name: "weather",  home: "{{datadir}}db_weather"}
   tasks:
 
 

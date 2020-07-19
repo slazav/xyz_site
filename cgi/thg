@@ -86,6 +86,7 @@ sub delete_team($){
 
 sub read_team($){
   my $tid = shift;
+  $tid=~s/[^a-z0-9]//g; # tid comes from http parameter
   return '' unless $tid;
   open IN, "$datadir/$tpref$tid.js" or die "can't load team data: $!\n";
   my $team = decode_json(join(' ', <IN>));
@@ -165,9 +166,10 @@ sub pt_status {
 ##################################
 # Team format:
 #  * name  -- name
+#  * id  -- id
 #  * ctime   -- time when team was created
 #  * pt    -- number of last correct answer (obsoleted)
-#  * atimes  -- number of guesses for each point (hash)
+#  * atimes  -- time of last answer for each point (hash)
 #  * guesses -- number of guesses for each point (hash)
 #  * guesses_per_day -- number of guesses during last 24h (hash)
 #  * answers -- answers and coordinates for each point (hash)
@@ -451,7 +453,7 @@ sub print_main_page{
   <p>The game is a sequence of puzzles. Each one describes
   some place within 5 mi radius from Lancaster railway station and has
   a question which you can answer after visiting the place. When you
-  solve a puzzle, you can see the next one.
+  solve a puzzle, you can see the next one. Puzzle marked with \* is optional.
   Please do not reveal any information about places and correct answers.
   Good luck!
   *;
